@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget Flow PRO - Advanced Mission Hub</title>
+  <link rel="icon"
+    href="https://fonts.gstatic.com/s/i/short-term/release/googlestandardsymbols/payments/default/24px.svg">
+  <!-- CreateSpace Design System Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=Fira+Code:wght@400;500&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="config.js"></script>
+  
+
+
+  
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div id="loader">
+    <div class="spinner"></div>
+    <p style="margin-top:16px; font-weight:800; color:var(--primary-dark);">กำลังประมวลผลข้อมูล...</p>
+  </div>
+
+  <div id="modalOverlay">
+    <div class="modal-card">
+      <div id="mIcon" style="margin-bottom:20px;">
+        <span class="material-symbols-outlined" style="font-size: 80px; color: #10b981;">check_circle</span>
+      </div>
+      <div id="mTitle" style="font-size:24px; font-weight:800; margin-bottom:12px; color:var(--text-main);">
+        ดำเนินการสำเร็จ</div>
+      <div id="mBody" style="font-size:15px; color:var(--text-muted); line-height:1.6; margin-bottom:32px;">
+        บันทึกข้อมูลและอัปเดตระบบเรียบร้อยแล้ว</div>
+      <button class="modal-btn" style="width:100%;" onclick="closeModal()">ตกลง เข้าใจแล้ว</button>
+    </div>
+  </div>
+
+  <!-- actionOverlay hidden – replaced by right-click context menu -->
+  <div id="actionOverlay" style="display:none !important;">
+    <div id="actionIdDisplay" style="display:none;"></div>
+    <button id="btn-deduct" style="display:none;"></button>
+    <button id="btn-deduct-add" style="display:none;"></button>
+    <button id="btn-offset" style="display:none;"></button>
+    <button id="btn-reserve-add" style="display:none;"></button>
+    <button id="btn-cancel" style="display:none;"></button>
+    <button id="btn-edit" style="display:none;"></button>
+  </div>
+
+  <!-- Right-click context menu -->
+  <div id="rowContextMenu">
+    <div class="ctx-header" id="ctxMenuId">รายการ #-</div>
+    <button class="ctx-item" id="ctx-deduct" onclick="doAction('deduct')">
+      <span class="material-symbols-outlined">payments</span>ตัดยอด
+    </button>
+    <button class="ctx-item" id="ctx-deduct-add" onclick="doAction('deduct-add')">
+      <span class="material-symbols-outlined">library_add</span>ตัดยอดเพิ่ม
+    </button>
+    <button class="ctx-item" id="ctx-offset" onclick="doAction('offset')">
+      <span class="material-symbols-outlined">sync_alt</span>หักล้าง
+    </button>
+    <button class="ctx-item" id="ctx-reserve-add" onclick="doAction('reserve-add')">
+      <span class="material-symbols-outlined">post_add</span>กันเงินเพิ่ม
+    </button>
+    <button class="ctx-item" id="ctx-edit" onclick="doAction('edit')">
+      <span class="material-symbols-outlined">edit_square</span>แก้ไขข้อมูล
+    </button>
+    <button class="ctx-item" id="ctx-set-reserve-no" onclick="doAction('set-reserve-no')">
+      <span class="material-symbols-outlined">tag</span>ลงเลขกันเงิน
+    </button>
+    <div class="ctx-divider"></div>
+    <button class="ctx-item ctx-danger" id="ctx-cancel" onclick="doAction('cancel')">
+      <span class="material-symbols-outlined">cancel</span>ยกเลิกรายการ
+    </button>
+  </div>
+
+  <aside class="sidebar">
+    <div class="logo-container">
+      <img src="Emblem_of_Department_of_Royal_Rainmaking_and_Agricultural_Aviation.png" class="logo-img" alt="Logo">
+      <div class="logo-text">BUDGET FLOW PRO</div>
+    </div>
+
+    <nav class="nav-menu">
+      <div class="nav-category">ศูนย์กลางข้อมูล</div>
+      <div class="nav-item active" id="nav-table" onclick="setView('table', this); renderTable()">
+        <span class="material-symbols-outlined">grid_on</span>
+        <span>ตารางรายการทั้งหมด</span>
+      </div>
+      <div class="nav-item" id="nav-spending-plan" onclick="setView('spending-plan', this); renderSpendingPlan()">
+        <span class="material-symbols-outlined">pie_chart</span>
+        <span>แผนการใช้จ่าย</span>
+      </div>
+      <div class="nav-category">การจัดการงบประมาณ</div>
+      <div class="nav-item" id="nav-reserve" onclick="setView('reserve', this)">
+        <span class="material-symbols-outlined">add_circle</span>
+        <span>กันเงินใหม่</span>
+      </div>
+      <div class="nav-item" id="nav-reserve-deduct" onclick="setView('reserve-deduct', this)">
+        <span class="material-symbols-outlined">bolt</span>
+        <span>กันเงิน+ตัดยอด (ด่วน)</span>
+      </div>
+
+
+      <div class="nav-category">เครื่องมือเสริม</div>
+      <div class="nav-item" id="nav-settings" onclick="setView('settings', this)">
+        <span class="material-symbols-outlined">settings_applications</span>
+        <span>ตั้งค่าแผนงาน</span>
+      </div>
+      <div class="nav-item" id="nav-gf" onclick="setView('gf', this)">
+        <span class="material-symbols-outlined">auto_fix</span>
+        <span>ระบบ GF อัตโนมัติ</span>
+      </div>
+    </nav>
+
+    <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); display:none;">
+      <label style="color: rgba(255,255,255,0.3); font-size: 10px;">Backend URL (API)</label>
+      <input type="text" id="apiInput"
+        style="width: 100%; background: rgba(255,255,255,0.05); border: none; color: white; font-size: 10px; margin-top: 4px; padding: 8px; border-radius: 4px;">
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-bar">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <button id="backBtn" onclick="goBack()"
+          style="background:none; border:none; cursor:pointer; color:var(--text-muted); display:none; align-items:center; justify-content:center;">
+          <span class="material-symbols-outlined" style="font-size:32px;">chevron_left</span>
+        </button>
+        <div class="view-title" id="viewTitle">ตารางรายการทั้งหมด</div>
+      </div>
+      <div class="top-bar-right">
+        <div class="date-badge" id="selectedBadge"
+          style="display:none; background:#fefce8; border-color:#eab308; color:#854d0e;">
+          <span class="material-symbols-outlined" style="font-size:18px;">payments</span>
+          <span style="font-weight:700; margin-right:4px;">รวมที่เลือก:</span>
+          <span id="sumSelected" style="font-weight:800; font-size:14px;">0.00 ฿</span>
+        </div>
+        <button onclick="init()" class="date-badge"
+          style="background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; cursor:pointer; font-weight:800;"
+          title="โหลดข้อมูลล่าสุดจากฐานข้อมูล (ข้ามระบบแคช)">
+          <span class="material-symbols-outlined" style="font-size:18px;">refresh</span>
+          <span>โหลดข้อมูลใหม่</span>
+        </button>
+        <div class="date-badge">
+          <span class="material-symbols-outlined" style="font-size:18px;">calendar_today</span>
+          <span id="dateDisplay">-- -- ----</span>
+        </div>
+        <div class="status-badge">
+          <div id="statusDot" class="status-dot"></div>
+          <span id="statusText">พร้อมเริ่มงาน</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="plan-bar">
+      <!-- TOP: PLAN TABS (populated dynamically from PlanSettings) -->
+      <div id="dynamicPlanBar" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">
+      </div>
+
+      <!-- BOTTOM: TABLE FILTERS & SEARCH (Optimized) -->
+      <div id="topFilterBar" class="filter-bar"
+        style="display:none; border-top: 1px solid #e2e8f0; padding-top:6px; margin-top:0; border-bottom:none; align-items:center;">
+        <!-- SEARCH BOX -->
+        <div class="search-box" style="margin-right:8px; flex: 0 0 140px;">
+          <span class="material-symbols-outlined"
+            style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:14px; color:var(--text-muted);">search</span>
+          <input type="text" id="tableSearchInput" style="height:28px; border-radius:6px; font-size:10px;"
+            placeholder="ค้นหา..." oninput="renderTable(this.value)">
+        </div>
+
+        <!-- STATUS PILLS (Stretched) -->
+        <div class="type-pill"
+          style="margin-bottom:0; flex: 1; background:#f8fafc; padding:2px; display:flex; flex-wrap:nowrap;">
+          <input type="radio" name="tableStatus" id="tsAll" value="all" onchange="renderTable()"><label style="flex:1"
+            for="tsAll">รวม</label>
+          <input type="radio" name="tableStatus" id="tsPending" value="pending" checked onchange="renderTable()"><label
+            style="flex:1" for="tsPending">ไม่ตัด</label>
+          <input type="radio" name="tableStatus" id="tsLiqPendingGF" value="liq-pending-gf"
+            onchange="renderTable()"><label style="flex:1" for="tsLiqPendingGF">รอ GF</label>
+          <input type="radio" name="tableStatus" id="tsCompleted" value="completed" onchange="renderTable()"><label
+            style="flex:1" for="tsCompleted">สำเร็จ</label>
+          <input type="radio" name="tableStatus" id="tsCancelled" value="cancelled" onchange="renderTable()"><label
+            style="flex:1" for="tsCancelled">ยกเลิก</label>
+        </div>
+
+        <!-- SELECTS (NARROWER) -->
+        <div style="display:flex; gap:4px; flex: 0 0 320px; margin-left:8px;">
+          <select id="filterRemark" onchange="renderTable()"
+            style="flex:1; height:28px; font-size:10px; padding:2px 4px;">
+            <option value="">หมายเหตุ B</option>
+          </select>
+          <select id="filterDept" onchange="renderTable()"
+            style="flex:1; height:28px; font-size:10px; padding:2px 4px;">
+            <option value="">ฝ่าย</option>
+          </select>
+          <select id="filterCat" onchange="renderTable()" style="flex:1; height:28px; font-size:10px; padding:2px 4px;">
+            <option value="">หมวด</option>
+          </select>
+        </div>
+
+        <div style="flex:1"></div> <!-- Spacer -->
+
+        <!-- GROUP TOGGLE -->
+        <label
+          style="font-size:10px; font-weight:700; color:var(--text-muted); display:flex; align-items:center; gap:3px; padding:2px 6px; border-radius:6px; border:1px solid var(--border); background:white; white-space:nowrap; flex: 0 0 auto;">
+          <input type="checkbox" id="groupToggle" checked onchange="renderTable()"> กลุ่ม
+        </label>
+      </div>
+    </div>
+
+    <div class="view-container" style="padding:16px 24px;">
+
+      <!-- SPENDING PLAN -->
+      <div id="view-spending-plan" class="app-view">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;"
+          class="hide-on-print">
+          <h2 style="margin:0; font-size:20px; color:var(--primary-dark);">สรุปแผนการใช้จ่าย</h2>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="spendingDeptFilter" onchange="renderSpendingPlan()"
+              style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); font-size:14px; outline:none;">
+              <option value="">ทุกกลุ่ม/ฝ่าย</option>
+            </select>
+            <select id="spendingMonthFilter" onchange="renderSpendingPlan()"
+              style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); font-size:14px; outline:none;">
+              <option value="">ทุกเดือน (GF)</option>
+            </select>
+            <button class="btn btn-secondary" onclick="window.print()"
+              style="display:flex; align-items:center; gap:6px;">
+              <span class="material-symbols-outlined" style="font-size:18px;">print</span>
+              พิมพ์รายงาน
+            </button>
+          </div>
+        </div>
+        <div class="print-header" style="display:none; text-align:center; margin-bottom:20px;">
+          <h2 style="margin:0 0 8px 0; font-size:24px; color:#000;">สรุปแผนการใช้จ่าย</h2>
+          <h3 id="spendingPlanPrintSubtitle" style="margin:0; font-size:18px; color:#333; font-weight:normal;"></h3>
+        </div>
+
+
+
+        <div class="table-wrapper" style="max-height: calc(100vh - 200px); overflow-y: auto; overflow-x: auto;">
+          <table class="data-table summary-table"
+            style="table-layout: fixed; font-size:10.5px; word-wrap: break-word; white-space: normal; width: 100%;">
+            <thead>
+              <tr>
+                <th style="width:14%; min-width:80px; font-size:10px;">รายการ</th>
+                <th style="width:6%; text-align:right; font-size:10px;">งบประมาณ<br>หลังปรับแผน</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">เงินกัน/ทดรอง<br>(Non-PO)</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">สัญญา<br>(PO)</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">เบิกเงิน<br>(PO)</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">สัญญา<br>คงเหลือ</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">เบิกจ่ายลดยอด<br>[กองแผน]</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">GF สะสม<br>(ก่อนหน้า)</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">GF<br>ประจำเดือน</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">GF<br>รวมทั้งหมด</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">ค้างท่อ<br>(รอดำเนินการ)</th>
+                <th style="width:7.5%; text-align:right; font-size:10px;">งบประมาณ<br>คงเหลือ</th>
+              </tr>
+            </thead>
+            <tbody id="spendingPlanBody">
+              <!-- Rows injected here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ALL DATA TABLE -->
+      <div id="view-table" class="app-view">
+        <div class="table-wrapper">
+          <table class="data-table" style="table-layout: fixed; width: 100%;">
+            <thead>
+              <tr>
+                <th style="width:40px; text-align:center;"><input type="checkbox" id="selectAll"
+                    onchange="toggleAllRows(this.checked)"></th>
+                <th style="width:70px; text-align:center;">ID</th>
+                  required></div>
+            </div>
+            <button type="submit" id="btnO" class="submit-btn" disabled>บันทึกการหักล้างยืมเงิน (.1)</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- CANCEL -->
+      <div id="view-cancel" class="app-view">
+        <div class="form-wrapper">
+          <form id="cancelForm">
+            <div class="field full" style="margin-bottom:15px;"><label>รหัสรายการ (ID) หรือเลขหนังสือ
+                เพื่อยกเลิกกันเงิน</label>
+              <input type="text" id="cancelSearchId" placeholder="ID หรือ เลขที่หนังสือ..."
+                oninput="omniSearch(this.value, 'C')" required>
+              <div id="prvC" class="preview-box"></div>
+              <input type="hidden" name="id" id="hiddenIdC">
+            </div>
+            <div
+              style="background:#fff1f2; padding:20px; border-radius:var(--radius); border:1px solid #fecaca; margin-bottom:20px;">
+              <h4 style="color:#e11d48; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                <span class="material-symbols-outlined">warning</span> ยืนยันการยกเลิก
+              </h4>
+              <p style="font-size:13px; color:#9f1239; line-height:1.5;">
+                ระบบจะทำการเปลี่ยนสถานะรายการเป็น <b>"ยกเลิก"</b> และคืนยอดเงินกลับไปที่งบประมาณส่วนกลางของรายการนั้นๆ
+                (คอลัมน์ B) และลบจำนวนเงินจากหมวดที่กันไว้เดิม
+              </p>
+            </div>
+            <button type="submit" id="btnC" class="submit-btn" style="background:#e11d48 !important;"
+              disabled>ยืนยันยกเลิกรายการนี้</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- EDIT -->
+
+      <div id="view-edit" class="app-view">
+        <div class="form-wrapper">
+          <form id="editForm">
+            <div class="field full" style="margin-bottom:15px;"><label>ค้นหา ID หรือเลขที่หนังสือ เพื่อแก้ไข</label>
+              <input type="text" oninput="omniSearch(this.value, 'E')" placeholder="ID / เลขที่หนังสือ...">
+              <div id="prvE" class="preview-box"></div>
+              <input type="hidden" name="id" id="hiddenIdE">
+            </div>
+            <div id="editFields" style="display:none;">
+              <div class="form-grid">
+                <div class="field"><label>เลขที่หนังสือ (G)</label><input type="text" name="refNo" id="eRef"></div>
+                <div class="field"><label>วันที่ลงหนังสือ (H)</label><input type="text" name="letterDate" id="eDate">
+                </div>
+                <div class="field"><label>ชื่อผู้เบิก/ยืม (I)</label><input type="text" name="name" id="eName"></div>
+                <div class="field"><label>ฝ่าย (J)</label><select name="dept" id="eDept">
+                    <option value="ฝบบ.">ฝบบ.</option>
+                    <option value="กวบ.">กวบ.</option>
+                    <option value="กกบ.">กกบ.</option>
+                    <option value="กอบ.">กอบ.</option>
+                    <option value="กซอ.">กซอ.</option>
+                    <option value="สบน.">สบน.</option>
+                    <option value="สบค.">สบค.</option>
+                  </select></div>
+                <div class="field"><label>เลขหนังสือตัดยอด/หักล้าง (D)</label><input type="text" name="liquidateRefNo"
+                    id="eLiq"></div>
+                <div class="field"><label>เลขที่ระบบตัดยอด (F)</label><input type="text" name="colF" id="eF"></div>
+                <div class="field"><label>หมวดงบประมาณ (K)</label>
+                  <select name="col" id="eCol" class="catSelect" data-hidden="catCodeE" onchange="syncCode(this)">
+                    <option value="">-- เลือก --</option>
+                  </select>
+                  <input type="hidden" name="catCode" id="catCodeE">
+                </div>
+                <div class="field"><label>จำนวนเงินกัน (บาท)</label><input type="number" name="amount" id="eAmt"
+                    step="0.01"></div>
+                <div class="field"><label>จำนวนเงินตัดจ่าย (บาท)</label><input type="number" name="amountDeduct"
+                    id="eAmtD" step="0.01"></div>
+                <div class="field full"><label>รายละเอียดโครงการ (M)</label><textarea name="desc" id="eDesc"
+                    style="min-height:60px;"></textarea></div>
+              </div>
+              <button type="submit" class="submit-btn"
+                style="background:#f59e0b !important;">บันทึกการแก้ไขข้อมูล</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- SEARCH & HISTORY -->
+      <div id="view-search" class="app-view">
+        <div class="search-box">
+          <input type="text" id="omniSearchInput"
+            placeholder="พิมพ์ ID, เลขที่หนังสือ, เลขตัดยอด หรือชื่อผู้ปฏิบัติงาน..."
+            oninput="performGlobalSearch(this.value)">
+        </div>
+        <div id="searchResultsContainer"></div>
+        <div id="searchDetail" style="margin-top: 30px;"></div>
+      </div>
+
+      <!-- GF AUTOMATIC -->
+      <div id="view-gf" class="app-view">
+        <div class="gf-grid">
+          <a href="https://script.google.com/macros/s/AKfycbyv_xdhlDo0bhWRyiuRfet7M1WS3DdU2t7rNDOtTrk5j0hJs3OFe0HuLjyHxw4EEr0V/exec"
+            target="_blank" class="gf-card">
+            <span class="material-symbols-outlined">cloud_sync</span>
+            <h3>1. แผนปฏิบัติการฝนหลวง</h3>
+            <p>ระบบสร้างไฟล์ GF สำหรับภารกิจปฏิบัติการฝนหลวง</p>
+          </a>
+          <a href="https://script.google.com/macros/s/AKfycbyDDGn6kdHdDB_dzSQ320GU2MoD2LTTKBB5TwygqAZq5LbdleTp9NtyC7fr57qoMhE/exec"
+            target="_blank" class="gf-card">
+            <span class="material-symbols-outlined">flight_takeoff</span>
+            <h3>2. แผนงานบริการด้านการบิน</h3>
+            <p>ระบบสร้างไฟล์ GF สำหรับภารกิจส่วนกลางและบริการด้านการบิน</p>
+          </a>
+          <a href="https://script.google.com/macros/s/AKfycbyfzazYFCH30Q_NMUOr1FLAGn97yidRa4bgNIeiuioBS8oRWBDjVhszW5pDqbZMfaUm/exec"
+            target="_blank" class="gf-card">
+            <span class="material-symbols-outlined">masks</span>
+            <h3>3. แผนปฏิบัติการแก้ปัญหาฝุ่นละออง</h3>
+            <p>ระบบสร้างไฟล์ GF สำหรับภารกิจดัดแปรสภาพอากาศแก้ปัญหาฝุ่น</p>
+          </a>
+        </div>
+      </div>
+
+
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div id="view-settings" class="app-view" style="padding: 24px;">
+      <div id="planListContainer">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+          <h3>รายการแผนงาน</h3>
+          <button class="submit-btn" style="width:auto; padding:8px 16px; margin:0;" onclick="editPlan(null)">
+            + เพิ่มแผนงานใหม่
+          </button>
+        </div>
+        <div id="planListTable"></div>
+      </div>
+
+      <div id="planEditContainer" style="display:none;">
+        <button class="btn-cancel" style="margin-bottom:20px;" onclick="closePlanEdit()">กลับหน้าแรก</button>
+        <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:24px;">
+          <div><label>ชื่อตัวย่อแผนงาน (ใช้ในคอลัมน์ B)*</label><input type="text" id="settingPlanShort" placeholder="เช่น บูรณาการ" style="width:100%; box-sizing:border-box;"></div>
+          <div><label>ชื่อแผนงานเต็ม</label><input type="text" id="settingPlanFull" placeholder="ชื่อเต็มแผนงาน" style="width:100%; box-sizing:border-box;"></div>
+          <div><label>ผลผลิต</label><input type="text" id="settingPlanOutput" placeholder="ผลผลิต" style="width:100%; box-sizing:border-box;"></div>
+          <div><label>กิจกรรม</label><input type="text" id="settingPlanActivity" placeholder="กิจกรรม" style="width:100%; box-sizing:border-box;"></div>
+          <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+            <label style="white-space:nowrap;">สีธีมของแผน</label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <input type="color" id="settingPlanColor" value="#6366f1"
+                style="width:40px; height:36px; border:none; border-radius:8px; cursor:pointer; padding:2px;">
+              <div style="display:flex; gap:6px; flex-wrap:wrap;" id="colorPresets">
+                <span onclick="document.getElementById('settingPlanColor').value='#6366f1'"
+                  style="width:28px;height:28px;background:#6366f1;border-radius:6px;cursor:pointer;display:inline-block;border:2px solid transparent;"
+                  title="ม่วงอมๆ"></span>
+                <span onclick="document.getElementById('settingPlanColor').value='#10b981'"
+                  style="width:28px;height:28px;background:#10b981;border-radius:6px;cursor:pointer;display:inline-block;border:2px solid transparent;"
+                  title="เขียว"></span>
+                <span onclick="document.getElementById('settingPlanColor').value='#f59e0b'"
+                  style="width:28px;height:28px;background:#f59e0b;border-radius:6px;cursor:pointer;display:inline-block;border:2px solid transparent;"
+                  title="ส้ม"></span>
+                <span onclick="document.getElementById('settingPlanColor').value='#ef4444'"
+                  style="width:28px;height:28px;background:#ef4444;border-radius:6px;cursor:pointer;display:inline-block;border:2px solid transparent;"
+                  title="แดง"></span>
+                <span onclick="document.getElementById('settingPlanColor').value='#0ea5e9'"
+                  style="width:28px;height:28px;background:#0ea5e9;border-radius:6px;cursor:pointer;display:inline-block;border:2px solid transparent;"
+                  title="ฟ้า"></span>
+                <span onclick="document.getElementById('settingPlanColor').value='#8b5cf6'"
+                  style="width:28px;height:28px;background:#8b5cf6;border-radius:6px;cursor:pointer;display:inline-block;border:2px solid transparent;"
+                  title="ม่วง"></span>
+                <span onclick="document.getElementById('settingPlanColor').value='#ec4899'"
+                  style="width:28px;height:28px;background:#ec4899;border-radius:6px;cursor:pointer;display:inline-block;border:2px solid transparent;"
+                  title="ชมพู"></span>
+                <span onclick="document.getElementById('settingPlanColor').value='#14b8a6'"
+                  style="width:28px;height:28px;background:#14b8a6;border-radius:6px;cursor:pointer;display:inline-block;border:2px solid transparent;"
+                  title="เขียวอม"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style="display:flex; justify-content:space-between; align-items:center; margin-top:30px; margin-bottom:10px;">
+          <h4>หมวดงบประมาณ</h4>
+          <button class="btn-cancel" onclick="addNewEditItem()">+ เพิ่มหมวด/รายการใหม่</button>
+        </div>
+
+        <div style="overflow-x:auto; width:100%; padding-bottom:10px;">
+          <table class="data-table" style="table-layout:fixed; width:100%; word-wrap:break-word; font-size:12px;" id="budgetSettingsTable">
+            <thead>
+              <tr>
+                <th style="width:30%; white-space:normal; padding:8px; text-align:left;">หมวดหมู่ / รายการ</th>
+                <th style="width:14%; text-align:right; padding:8px;">งบที่ได้รับ (Allocated)</th>
+                <th style="width:14%; text-align:right; padding:8px;">ปรับฐาน (เพิ่ม)</th>
+                <th style="width:14%; text-align:right; padding:8px;">ปรับฐาน (ลด)</th>
+                <th style="width:14%; text-align:right; padding:8px;">รวมงบประมาณ</th>
+                <th style="width:14%; text-align:center; padding:8px;">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="budgetSettingsTbody"></tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:40px; border-top:1px solid #e2e8f0; padding-top:20px; display:flex; justify-content:space-between;">
+          <button onclick="deleteCurrentPlan()" style="display:flex; align-items:center; gap:8px; padding:10px 20px; font-size:14px; font-weight:600; color:#ef4444; background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; cursor:pointer; transition:all 0.2s; font-family:inherit;" onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#ef4444';" onmouseout="this.style.background='#fef2f2'; this.style.borderColor='#fca5a5';">
+            <span class="material-symbols-outlined" style="font-size:18px;">delete</span> ลบแผนงานนี้ทิ้ง
+          </button>
+          <button onclick="savePlanSettings()" style="display:flex; align-items:center; gap:8px; padding:10px 24px; font-size:14px; font-weight:bold; color:white; background:var(--primary); border:none; border-radius:8px; cursor:pointer; transition:all 0.2s; box-shadow:0 4px 6px -1px rgba(99,102,241,0.4); font-family:inherit;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 8px -1px rgba(99,102,241,0.5)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 6px -1px rgba(99,102,241,0.4)';">
+            <span class="material-symbols-outlined" style="font-size:18px;">save</span> บันทึกแผนงาน
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY REPORT VIEW -->
+    <div id="view-summary" class="app-view">
+      <div class="table-wrapper" style="padding: 24px; min-height: 80vh;">
+        <h2
+          style="margin-bottom:20px; color:var(--primary-dark); display:flex; justify-content:space-between; align-items:center;">
+          <span><span class="material-symbols-outlined"
+              style="vertical-align:bottom; margin-right:8px; color:var(--primary);">insert_chart</span>รายงานสรุปงบประมาณประจำปี</span>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="gfMonthFilter" onchange="renderSummaryReport()"
+              style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); font-size:14px; outline:none;">
+              <option value="">ทุกเดือน (GF)</option>
+            </select>
+            <button onclick="renderSummaryReport()" class="submit-btn"
+              style="width:auto; padding:8px 16px; font-size:14px; margin:0;"><span class="material-symbols-outlined"
+                style="font-size:18px;">refresh</span> โหลดข้อมูลใหม่</button>
+          </div>
+        </h2>
+        <div style="overflow-x: auto; width: 100%; padding-bottom: 8px;">
+          <table class="data-table summary-table"
+            style="table-layout: auto; width: 100%; min-width: 1200px; font-size:12px; white-space: nowrap;">
+            <thead>
+              <tr>
+                <th style="width:40px; text-align:center;">ลำดับ</th>
+                <th style="width:150px;">รายการ</th>
+                <th style="width:80px; text-align:right;">งบประมาณ ตาม พรบ.</th>
+                <th style="width:85px; text-align:right;">งบประมาณหลัง ปรับแผน</th>
+                <th style="width:85px; text-align:right;">เงินทดรองราชการ /เงินกัน</th>
+                <th style="width:80px; text-align:right;">สัญญา (PO)</th>
+                <th style="width:80px; text-align:right;">เบิกเงิน (PO)</th>
+                <th style="width:85px; text-align:right;">สัญญาคงเหลือ</th>
+                <th style="width:85px; text-align:right;">เบิกจ่ายลดยอด [กองแผน]</th>
+                <th style="width:85px; text-align:right;">GF รวมทั้งหมด</th>
+                <th style="width:80px; text-align:right;">ค้างท่อ</th>
+                <th style="width:85px; text-align:right;">งบประมาณคงเหลือ</th>
+                <th style="width:60px; text-align:right;">ผลการเบิกจ่าย(%)</th>
+              </tr>
+            </thead>
+            <tbody id="summaryTbody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    </div>
+
+  </main>
+
+  
+  <script src="app.js"></script>
+</body>
+
+</html>

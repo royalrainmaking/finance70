@@ -1,0 +1,2916 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบติดตามเอกสาร - แผน บรู</title>
+    <link rel="icon" href="data:,">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .container-fluid {
+            margin-top: 30px;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-badge {
+            font-size: 0.9em;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+
+        .step-active {
+            font-weight: bold;
+            color: #0d6efd;
+        }
+
+        .table-responsive {
+            margin-bottom: 20px;
+        }
+
+        .col-name {
+            min-width: 90px;
+        }
+
+        .col-date {
+            min-width: 75px;
+            white-space: nowrap;
+        }
+
+        .col-notes {
+            max-width: 150px;
+            word-wrap: break-word;
+            white-space: normal;
+        }
+
+        #docTable {
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        #docTable thead th {
+            background-color: #0070C0;
+            color: white;
+            font-weight: bold;
+            border: 1px solid #004B96;
+            padding: 6px 8px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        #docTable tbody td {
+            border: 1px solid #D3D3D3;
+            padding: 4px 6px;
+        }
+
+        #docTable tbody tr {
+            cursor: pointer;
+        }
+
+        #docTable tbody tr:hover {
+            background-color: #e9ecef;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .navbar {
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-outline-hail, .btn-outline-purple {
+            color: #6f42c1;
+            border-color: #6f42c1;
+        }
+
+        .btn-outline-hail:hover,
+        .btn-outline-hail.active,
+        .btn-outline-purple:hover,
+        .btn-outline-purple.active {
+            background-color: #6f42c1;
+            color: white;
+        }
+
+        .bg-purple {
+            background-color: #6f42c1 !important;
+            color: white !important;
+        }
+
+        .table-purple {
+            background-color: #f3e5f5 !important;
+        }
+
+        /* Status row bars */
+        tr.table-primary td:first-child { border-left: 5px solid #0d6efd !important; }
+        tr.table-success td:first-child { border-left: 5px solid #198754 !important; }
+        tr.table-warning td:first-child { border-left: 5px solid #ffc107 !important; }
+        tr.table-danger td:first-child { border-left: 5px solid #dc3545 !important; }
+        tr.table-info td:first-child { border-left: 5px solid #0dcaf0 !important; }
+        tr.table-purple td:first-child { border-left: 5px solid #6f42c1 !important; }
+        tr.table-secondary td:first-child { border-left: 5px solid #6c757d !important; }
+        tr.table-teal { background-color: #e0f2f1 !important; }
+        tr.table-teal td:first-child { border-left: 5px solid #009688 !important; }
+
+        .status-date {
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+
+        tr.table-primary .status-date { color: #0d6efd !important; }
+        tr.table-success .status-date { color: #198754 !important; }
+        tr.table-warning .status-date { color: #856404 !important; }
+        tr.table-danger .status-date { color: #842029 !important; }
+        tr.table-info .status-date { color: #055160 !important; }
+        tr.table-purple .status-date { color: #4a148c !important; }
+        tr.table-secondary .status-date { color: #6c757d !important; }
+        tr.table-teal .status-date { color: #00796b !important; }
+
+        @media print {
+            @page {
+                size: landscape;
+                margin: 5mm;
+            }
+
+            .navbar,
+            .row.mb-3,
+            .collapse,
+            #notificationArea,
+            .btn,
+            .row-checkbox,
+            .th-checkbox,
+            #loading,
+            .modal {
+                display: none !important;
+            }
+
+            .container-fluid {
+                margin-top: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+
+            #docTable {
+                font-size: 8pt !important;
+                width: 100% !important;
+            }
+
+            #docTable thead th {
+                background-color: #0070C0 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .status-badge {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            #docTable th:first-child,
+            #docTable td:first-child {
+                display: none !important;
+            }
+
+            #summaryTable {
+                font-size: 7pt !important;
+                width: 100% !important;
+                table-layout: auto !important;
+            }
+
+            #summaryTable thead th,
+            #summaryTable tbody td {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                min-width: auto !important;
+                padding: 2px !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+            }
+
+            /* Adjust first column width for print */
+            #summaryTable th:first-child,
+            #summaryTable td:first-child {
+                width: 30px !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1" id="pageTitle">ระบบติดตามเอกสาร - แผน บรู</span>
+            <div class="navbar-nav me-auto">
+                <a class="nav-link active" href="#" id="navTracking" onclick="showPage('tracking')">ตารางติดตาม</a>
+                <a class="nav-link" href="#" id="navDashboard" onclick="showPage('dashboard')">แผนการใช้จ่ายงบประมาณ</a>
+                <a class="nav-link" href="#" id="navSummary" onclick="showPage('summary')">สรุปงบประมาณ (GF)</a>
+            </div>
+            <div class="d-flex" id="planButtons">
+                <button class="btn btn-outline-light me-2 btn-sm active" id="btnPlanBru" onclick="switchPlan('bru')">แผน
+                    บรู</button>
+                <button class="btn btn-outline-light me-2 btn-sm" id="btnPlanYut"
+                    onclick="switchPlan('yut')">แผนยุทธ</button>
+                <button class="btn btn-outline-light me-2 btn-sm" id="btnPlanFun"
+                    onclick="switchPlan('fun')">แผนฝุ่น</button>
+                <button class="btn btn-outline-light btn-sm" id="btnPlanHail"
+                    onclick="switchPlan('hail')">แผนลูกเห็บ</button>
+            </div>
+        </div>
+    </nav>
+
+    <div id="notificationArea" class="container-fluid"></div>
+
+    <div id="trackingPage" class="container-fluid">
+        <div class="card p-4">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <input type="text" id="searchInput" class="form-control"
+                        placeholder="ค้นหาด้วยเลขหนังสือ ชื่อผู้เบิก หรือฝ่าย...">
+                </div>
+                <div class="col-md-6 text-end">
+                    <button class="btn btn-outline-primary me-2" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#advancedFilter" aria-expanded="false" aria-controls="advancedFilter">
+                        🔍 ตัวกรองขั้นสูง
+                    </button>
+                    <button class="btn btn-outline-danger me-2" onclick="exportToPDF()">พิมพ์ / Export PDF</button>
+                    <button class="btn btn-success" onclick="fetchData()">รีเฟรชข้อมูล</button>
+                </div>
+            </div>
+
+            <div class="collapse mb-3" id="advancedFilter">
+                <div class="card card-body bg-light">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold d-block">กรองตามขั้นตอน:</label>
+                        <div id="stepFilters" class="d-flex flex-wrap gap-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input step-filter" type="checkbox" value="WAITING"
+                                    id="filterWaiting" checked>
+                                <label class="form-check-label" for="filterWaiting">รอการกรอก</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input step-filter" type="checkbox"
+                                    value="ยังไม่ได้รับเอกสารตัวจริง" id="filterNoOriginal" checked>
+                                <label class="form-check-label" for="filterNoOriginal">ยังไม่ได้รับเอกสารตัวจริง</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input step-filter" type="checkbox" value="อยู่ระหว่างแก้ไข"
+                                    id="filterFixing" checked>
+                                <label class="form-check-label" for="filterFixing">อยู่ระหว่างแก้ไข</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input step-filter" type="checkbox" value="กำลังดำเนินการ"
+                                    id="filterProcessing" checked>
+                                <label class="form-check-label" for="filterProcessing">กำลังดำเนินการ</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input step-filter" type="checkbox"
+                                    value="ส่งเบิกแล้ว (การเงิน)" id="filterSentToFinance" checked>
+                                <label class="form-check-label" for="filterSentToFinance">ส่งเบิกแล้ว (การเงิน)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input step-filter" type="checkbox"
+                                    value="ส่งไปยังกลุ่ม/ฝ่าย" id="filterSentToDept" checked>
+                                <label class="form-check-label" for="filterSentToDept">ส่งไปยังกลุ่ม/ฝ่าย</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input step-filter" type="checkbox"
+                                    value="ยังไม่เสร็จสิ้นภารกิจ" id="filterNotFinished" checked>
+                                <label class="form-check-label" for="filterNotFinished">ยังไม่เสร็จสิ้นภารกิจ</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input step-filter" type="checkbox" value="ยกเลิก/ไม่เบิก"
+                                    id="filterCancel" checked>
+                                <label class="form-check-label" for="filterCancel">ยกเลิก/ไม่เบิก</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold d-block">กรองตามเดือน:</label>
+                        <div id="monthFilters" class="d-flex flex-wrap gap-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="10"
+                                    id="filterMonth10">
+                                <label class="form-check-label" for="filterMonth10">ต.ค. (ตุลาคม)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="11"
+                                    id="filterMonth11">
+                                <label class="form-check-label" for="filterMonth11">พ.ย. (พฤศจิกายน)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="12"
+                                    id="filterMonth12">
+                                <label class="form-check-label" for="filterMonth12">ธ.ค. (ธันวาคม)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="1"
+                                    id="filterMonth1">
+                                <label class="form-check-label" for="filterMonth1">ม.ค. (มกราคม)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="2"
+                                    id="filterMonth2">
+                                <label class="form-check-label" for="filterMonth2">ก.พ. (กุมภาพันธ์)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="3"
+                                    id="filterMonth3">
+                                <label class="form-check-label" for="filterMonth3">มี.ค. (มีนาคม)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="4"
+                                    id="filterMonth4">
+                                <label class="form-check-label" for="filterMonth4">เม.ย. (เมษายน)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="5"
+                                    id="filterMonth5">
+                                <label class="form-check-label" for="filterMonth5">พ.ค. (พฤษภาคม)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="6"
+                                    id="filterMonth6">
+                                <label class="form-check-label" for="filterMonth6">มิ.ย. (มิถุนายน)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="7"
+                                    id="filterMonth7">
+                                <label class="form-check-label" for="filterMonth7">ก.ค. (กรกฎาคม)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="8"
+                                    id="filterMonth8">
+                                <label class="form-check-label" for="filterMonth8">ส.ค. (สิงหาคม)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input month-filter-checkbox" type="checkbox" value="9"
+                                    id="filterMonth9">
+                                <label class="form-check-label" for="filterMonth9">ก.ย. (กันยายน)</label>
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm"
+                                onclick="clearMonthFilter()">ล้างเดือน</button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold d-block">กรองตามกลุ่ม:</label>
+                        <div id="groupFilters" class="d-flex flex-wrap gap-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input group-filter" type="checkbox" value="A" id="filterGroupA"
+                                    checked>
+                                <label class="form-check-label" for="filterGroupA">A - ค่าตอบแทน</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input group-filter" type="checkbox" value="B" id="filterGroupB"
+                                    checked>
+                                <label class="form-check-label" for="filterGroupB">B - ค่าใช้สอย</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input group-filter" type="checkbox" value="C" id="filterGroupC"
+                                    checked>
+                                <label class="form-check-label" for="filterGroupC">C - ค่าวัสดุ</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold d-block">กรองตามหมวด:</label>
+                        <div id="categoryFilters" class="d-flex flex-wrap gap-2"
+                            style="max-height: 150px; overflow-y: auto; padding: 10px; border: 1px solid #dee2e6; border-radius: 5px; background: white;">
+                            <!-- Categories will be generated by JS -->
+                        </div>
+                        <div class="mt-2">
+                            <button class="btn btn-outline-secondary btn-sm"
+                                onclick="toggleAllCategories(true)">เลือกทั้งหมด</button>
+                            <button class="btn btn-outline-secondary btn-sm"
+                                onclick="toggleAllCategories(false)">ล้างทั้งหมด</button>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold d-block">กรองตามระยะเวลา (วันที่ลงคุม):</label>
+                            <div id="durationControlFilters" class="d-flex flex-wrap gap-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input duration-control-checkbox" type="checkbox" value="30"
+                                        id="filterDurationControl30">
+                                    <label class="form-check-label" for="filterDurationControl30">เกิน 30 วัน ⚠️</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input duration-control-checkbox" type="checkbox" value="60"
+                                        id="filterDurationControl60">
+                                    <label class="form-check-label" for="filterDurationControl60">เกิน 60 วัน 🚨</label>
+                                </div>
+                                <button class="btn btn-outline-secondary btn-sm"
+                                    onclick="clearDurationControlFilter()">ล้าง</button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold d-block">กรองตามระยะเวลา (วันที่ได้รับเอกสาร):</label>
+                            <div id="durationReceiptFilters" class="d-flex flex-wrap gap-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input duration-receipt-checkbox" type="checkbox" value="30"
+                                        id="filterDurationReceipt30">
+                                    <label class="form-check-label" for="filterDurationReceipt30">เกิน 30 วัน ⚠️</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input duration-receipt-checkbox" type="checkbox" value="60"
+                                        id="filterDurationReceipt60">
+                                    <label class="form-check-label" for="filterDurationReceipt60">เกิน 60 วัน 🚨</label>
+                                </div>
+                                <button class="btn btn-outline-secondary btn-sm"
+                                    onclick="clearDurationReceiptFilter()">ล้าง</button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold d-block">กรองตามระยะเวลา (ไม่มีการเปลี่ยนแปลง):</label>
+                            <div id="durationModifiedFilters" class="d-flex flex-wrap gap-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input duration-modified-checkbox" type="checkbox"
+                                        value="30" id="filterDurationModified30">
+                                    <label class="form-check-label" for="filterDurationModified30">เกิน 30 วัน
+                                        ⚠️</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input duration-modified-checkbox" type="checkbox"
+                                        value="60" id="filterDurationModified60">
+                                    <label class="form-check-label" for="filterDurationModified60">เกิน 60 วัน
+                                        🚨</label>
+                                </div>
+                                <button class="btn btn-outline-secondary btn-sm"
+                                    onclick="clearDurationModifiedFilter()">ล้าง</button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label fw-bold d-block">กรองตามสถานะภารกิจ:</label>
+                            <div id="missionFilters" class="d-flex flex-wrap gap-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input mission-filter" type="checkbox" value="ENDED"
+                                        id="filterMissionEnded" checked>
+                                    <label class="form-check-label" for="filterMissionEnded">จบภารกิจไม่เกิน 15
+                                        วัน</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input mission-filter" type="checkbox" value="OVER15"
+                                        id="filterMissionOver15" checked>
+                                    <label class="form-check-label" for="filterMissionOver15">จบภารกิจเกิน 15
+                                        วัน</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input mission-filter" type="checkbox" value="PROGRESS"
+                                        id="filterMissionProgress" checked>
+                                    <label class="form-check-label" for="filterMissionProgress">ยังไม่จบ</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input mission-filter" type="checkbox" value="NODATE"
+                                        id="filterMissionNoDate" checked>
+                                    <label class="form-check-label" for="filterMissionNoDate">ไม่พบวันที่</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-5 mb-3">
+                            <label class="form-label fw-bold d-block">กรองการตัดยอด:</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="filterShowCutoff" onchange="renderTableShowCutoff()">
+                                <label class="form-check-label" for="filterShowCutoff">แสดงรายการที่ตัดยอดแล้ว</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="filterOnlyCutoff" onchange="renderTableOnlyCutoff()">
+                                <label class="form-check-label" for="filterOnlyCutoff">แสดงเฉพาะรายการที่ตัดยอดแล้ว</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-auto">
+                                <label class="form-label fw-bold mb-0">ช่วงวันที่ (วันที่ลงคุม):</label>
+                            </div>
+                            <div class="col-auto">
+                                <input type="text" id="startDate" class="form-control form-control-sm date-filter"
+                                    placeholder="จากวันที่">
+                            </div>
+                            <div class="col-auto">
+                                ถึงวันที่
+                            </div>
+                            <div class="col-auto">
+                                <input type="text" id="endDate" class="form-control form-control-sm date-filter"
+                                    placeholder="ถึงวันที่">
+                            </div>
+                            <div class="col-auto">
+                                <button class="btn btn-outline-secondary btn-sm"
+                                    onclick="clearDateFilter()">ล้างวันที่</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <ul class="nav nav-tabs mb-3" id="deptTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="all-tab" onclick="switchTab('All')"
+                        type="button">ทั้งหมด</button>
+                </li>
+            </ul>
+
+            <div id="tableSummary" class="card shadow-sm border-0 mb-3" style="background-color: #e3f2fd;">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div class="d-flex gap-4">
+                            <div>
+                                <strong>จำนวนรายการ:</strong> <span id="summaryCount" class="badge bg-primary">0</span>
+                                รายการ
+                            </div>
+                            <div>
+                                <strong>วงเงินรวม:</strong> <span id="summaryAmount"
+                                    class="badge bg-success">0.00</span> บาท
+                            </div>
+                        </div>
+                        <div class="text-muted small">
+                            * ข้อมูลที่แสดงตามตัวกรองปัจจุบัน
+                        </div>
+                    </div>
+                    <hr class="my-2">
+                    <div id="categoryBreakdown" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-2 small">
+                        <!-- Category breakdown will be here -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading" class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>กำลังโหลดข้อมูล...</p>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover" id="docTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 30px;">
+                                <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
+                            </th>
+                            <th style="width: 40px;">ลำดับ</th>
+                            <th style="width: 75px;">เลขหนังสือ</th>
+                            <th style="width: 60px;">วันที่ลงคุม</th>
+                            <th style="width: 90px;">จำนวนวัน</th>
+                            <th style="width: 170px;">ชื่อผู้เบิก</th>
+                            <th style="width: 50px;">ฝ่าย</th>
+                            <th style="width: 80px;">วงเงิน</th>
+                            <th style="width: 110px;">ขั้นตอนปัจจุบัน</th>
+                            <th style="width: 60px;">วันที่ได้รับเอกสาร</th>
+                            <th style="width: 90px;">จบภารกิจแล้ว</th>
+                            <th class="col-notes">หมายเหตุ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <div id="dashboardPage" class="container-fluid d-none">
+        <!-- Hidden inputs for Dashboard filtering -->
+        <input type="hidden" id="dashPlanFilter" value="All">
+        <input type="hidden" id="dashGroupFilter" value="All">
+        <input type="hidden" id="dashCategoryFilter" value="All">
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card p-3 shadow-sm border-0">
+                    <div class="row g-3">
+                        <!-- Filter Plan Buttons -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold mb-2 small text-muted d-block">กรองตามแผน</label>
+                            <div id="dashPlanButtons" class="btn-group btn-group-sm w-100 flex-wrap" role="group">
+                                <button type="button" class="btn btn-outline-primary active"
+                                    onclick="setDashFilter('plan', 'All', this)">ทุกแผน</button>
+                                <button type="button" class="btn btn-outline-success"
+                                    onclick="setDashFilter('plan', 'bru', this)">แผน บรู</button>
+                                <button type="button" class="btn btn-outline-warning text-dark"
+                                    onclick="setDashFilter('plan', 'yut', this)">แผนยุทธ</button>
+                                <button type="button" class="btn btn-outline-danger"
+                                    onclick="setDashFilter('plan', 'fun', this)">แผนฝุ่น</button>
+                                <button type="button" class="btn btn-outline-secondary"
+                                    onclick="setDashFilter('plan', 'hail', this)"
+                                    style="color: #6f42c1; border-color: #6f42c1;">แผนลูกเห็บ</button>
+                            </div>
+                        </div>
+                        <!-- Filter Group Buttons -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold mb-2 small text-muted d-block">กรองตามกลุ่มงบประมาณ</label>
+                            <div id="dashGroupButtons" class="btn-group btn-group-sm w-100" role="group">
+                                <button type="button" class="btn btn-outline-primary active"
+                                    onclick="setDashFilter('group', 'All', this)">ทุกกลุ่ม</button>
+                                <button type="button" class="btn btn-outline-info text-dark"
+                                    onclick="setDashFilter('group', 'A', this)">ค่าตอบแทน (A)</button>
+                                <button type="button" class="btn btn-outline-info text-dark"
+                                    onclick="setDashFilter('group', 'B', this)">ค่าใช้สอย (B)</button>
+                                <button type="button" class="btn btn-outline-info text-dark"
+                                    onclick="setDashFilter('group', 'C', this)">ค่าวัสดุ (C)</button>
+                            </div>
+                        </div>
+                        <!-- Filter Category Buttons -->
+                        <div class="col-12 mt-3">
+                            <label class="form-label fw-bold mb-2 small text-muted d-block">กรองตามหมวด</label>
+                            <div id="dashCategoryButtons" class="d-flex flex-wrap gap-1"
+                                style="max-height: 120px; overflow-y: auto; padding: 5px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+                                <button type="button" class="btn btn-sm btn-outline-secondary active dash-cat-btn"
+                                    onclick="setDashFilter('category', 'All', this)">ทุกหมวด</button>
+                                <!-- Category buttons populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card p-4">
+                    <h4 class="mb-4">สรุปแผนการใช้จ่ายงบประมาณ</h4>
+                    <div id="dashboardSummary" class="row">
+                        <!-- Summary cards will be here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card p-4">
+                    <h5>สรุปตามกลุ่มงบประมาณ</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>กลุ่ม</th>
+                                    <th class="text-end">จำนวนรายการ</th>
+                                    <th class="text-end">วงเงินรวม</th>
+                                </tr>
+                            </thead>
+                            <tbody id="groupSummaryTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card p-4">
+                    <h5>สรุปตามแผนงาน</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>แผน</th>
+                                    <th class="text-end">จำนวนรายการ</th>
+                                    <th class="text-end">วงเงินรวม</th>
+                                </tr>
+                            </thead>
+                            <tbody id="planSummaryTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card p-4">
+                    <h5>สรุปตามกลุ่ม/ฝ่าย</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>กลุ่ม/ฝ่าย</th>
+                                    <th class="text-end">จำนวนรายการ</th>
+                                    <th class="text-end">วงเงินรวม</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deptSummaryTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="summaryPage" class="container-fluid d-none">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h4 id="summaryTitle" class="mb-3">สรุปงบประมาณ (GF)</h4>
+                    <div id="summaryPlanTabs" class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-success btn-sm active" onclick="switchSummaryPlan('bru')">แผน บรู</button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="switchSummaryPlan('yut')">แผนยุทธ</button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="switchSummaryPlan('fun')">แผนฝุ่น</button>
+                        <button type="button" class="btn btn-outline-purple btn-sm" onclick="switchSummaryPlan('hail')">แผนลูกเห็บ</button>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-danger btn-sm" onclick="exportSummaryToPDF()">พิมพ์ / Export PDF</button>
+                    <button class="btn btn-success btn-sm" onclick="fetchSummaryData()">รีเฟรชข้อมูล</button>
+                </div>
+            </div>
+            <div id="summaryLoading" class="text-center p-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">กำลังโหลดข้อมูลสรุป...</p>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered table-hover" id="summaryTable" style="font-size: 0.75rem;">
+                    <thead id="summaryHeader" class="table-primary text-center align-middle sticky-top bg-primary text-white">
+                    </thead>
+                    <tbody id="summaryBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">อัปเดตสถานะเอกสาร</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editId">
+                    <div class="mb-3">
+                        <label class="form-label">ขั้นตอนปัจจุบัน</label>
+                        <select id="editStep" class="form-select">
+                            <option value="">-- ว่าง (รอการกรอก) --</option>
+                            <option value="ยังไม่ได้รับเอกสารตัวจริง">ยังไม่ได้รับเอกสารตัวจริง</option>
+                            <option value="อยู่ระหว่างแก้ไข">อยู่ระหว่างแก้ไข</option>
+                            <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+                            <option value="ส่งไปยังกลุ่ม/ฝ่าย">ส่งไปยังกลุ่ม/ฝ่าย</option>
+                            <option value="ส่งเบิกแล้ว (การเงิน)">ส่งเบิกไปที่การเงินแล้ว</option>
+                            <option value="ยกเลิก/ไม่เบิก">ยกเลิก/ไม่เบิก</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">วันที่ได้รับเอกสาร</label>
+                        <div class="input-group">
+                            <input type="text" id="editLocation" class="form-control" placeholder="เลือกวันที่...">
+                            <button class="btn btn-outline-secondary" type="button"
+                                onclick="clearEditDate()">ล้างวันที่</button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">หมายเหตุต้นฉบับ (อ่านอย่างเดียว)</label>
+                        <div id="originalNotes" class="form-control bg-light" style="min-height: 38px; height: auto; white-space: pre-wrap; font-size: 0.85rem;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">หมายเหตุเพิ่มเติม (สำหรับแก้ไข)</label>
+                        <textarea id="editNotes" class="form-control" rows="3"
+                            placeholder="กรอกหมายเหตุเพิ่มเติม..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" id="saveBtn" class="btn btn-primary" onclick="saveChanges()">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+
+
+    <script>
+        const CATEGORIES = {
+            'A1': 'ค่าอาหารทำการนอกเวลา',
+            'A2': 'ค่าตอบแทนคณะกรรมการ',
+            'A3': 'ค่าตอบแทนผู้ปฏิบัติงานบนอากาศยาน',
+            'A4': 'ค่าสมนาคุณวิทยากร',
+            'B1': 'ค่าเบี้ยเลี้ยงที่พักพาหนะ',
+            'B2': 'ค่าซ่อมแซมยานพาหนะ',
+            'B3': 'ค่าซ่อมแซมครุภัณฑ์',
+            'B4': 'ค่าซ่อมแซมสิ่งก่อสร้าง',
+            'B5': 'ค่าทำความสะอาด',
+            'B6': 'รักษาความปลอดภัย',
+            'B7': 'จ้างเหมาเอกชนดำเนินงาน',
+            'B8': 'ค่าสัมมนาและฝึกอบรม',
+            'B9': 'ค่าภาษี/ค่าธรรมเนียมศาล/ค่าเบี้ยประกัน/ค่าธรรมเนียม',
+            'B10': 'ค่ารับรองและพิธีการ (ค่าอาหาร)',
+            'B11': 'ค่าตรวจสุขภาพ',
+            'B12': 'ค่าใช้สอยอื่นๆ',
+            'B13': 'จ้างเหมาบริการอื่นๆ',
+            'C1': 'วัสดุสำนักงาน',
+            'C2': 'วัสดุเชื้อเพลิงและหล่อลื่น (อากาศยาน)',
+            'C3': 'วัสดุเชื้อเพลิงและหล่อลื่น (รถยนต์)',
+            'C4': 'วัสดุก่อสร้าง',
+            'C5': 'วัสดุวิทยาศาสตร์และการแพทย์',
+            'C6': 'วัสดุคอมพิวเตอร์',
+            'C7': 'วัสดุอากาศยาน',
+            'C8': 'วัสดุยานพาหนะและขนส่ง',
+            'C9': 'วัสดุการเกษตร',
+            'C10': 'วัสดุงานบ้านงานครัว',
+            'C11': 'วัสดุไฟฟ้าและวิทยุ',
+            'C12': 'วัสดุอื่นๆ',
+            'C13': 'วัสดุโรงงาน'
+        };
+
+        const GROUPS = {
+            'A': 'ค่าตอบแทน',
+            'B': 'ค่าใช้สอย',
+            'C': 'ค่าวัสดุ'
+        };
+
+        const PLANS = {
+            bru: {
+                name: 'แผน บรู',
+                url: 'https://docs.google.com/spreadsheets/d/1E43wKRlEa1xKM5l_zSDdstmAKPtDgw05rwJVeRLgTYk/export?format=csv&gid=1751324569',
+                summaryGid: '783233359',
+                color: '#198754', // Green
+                levels: [
+                    { bg: '#198754', text: 'white' },
+                    { bg: '#71c08d', text: 'white' },
+                    { bg: '#c3e6cb', text: 'black' }
+                ]
+            },
+            yut: {
+                name: 'แผนยุทธ',
+                url: 'https://docs.google.com/spreadsheets/d/1lwDV6QKiJ0nx4guP6T8BhIMquCmwIqzn-zdVnjYa_hc/export?format=csv&gid=1294888219',
+                summaryGid: '2072042102',
+                color: '#ffc107', // Yellow
+                levels: [
+                    { bg: '#ffc107', text: 'black' },
+                    { bg: '#ffe082', text: 'black' },
+                    { bg: '#fff9db', text: 'black' }
+                ]
+            },
+            fun: {
+                name: 'แผนฝุ่น',
+                url: 'https://docs.google.com/spreadsheets/d/1iOX9ISvptU2UpMbVNPTuYHbA4df11dytCHxFYKoSQxg/export?format=csv&gid=2022149520',
+                summaryGid: '577836523',
+                color: '#dc3545', // Red
+                levels: [
+                    { bg: '#dc3545', text: 'white' },
+                    { bg: '#e57373', text: 'white' },
+                    { bg: '#ffcdd2', text: 'black' }
+                ]
+            },
+            hail: {
+                name: 'แผนลูกเห็บ',
+                url: 'https://docs.google.com/spreadsheets/d/1SM0GYznjAKPOQT-itypsk83n7l5rx9ibWzKcLGZb4H4/export?format=csv&gid=1068774762',
+                summaryGid: '783233359',
+                color: '#6f42c1', // Purple
+                levels: [
+                    { bg: '#6f42c1', text: 'white' },
+                    { bg: '#9575cd', text: 'white' },
+                    { bg: '#d1c4e9', text: 'black' }
+                ]
+            }
+        };
+
+        const DB_URL = 'https://docs.google.com/spreadsheets/d/1eTamzpY32FwiJBlti4l49Ff6rWzrnKDopvLi0DsdwXY/export?format=csv&gid=0';
+
+        let currentPlan = 'bru';
+        let documentData = [];
+        let allPlansData = {}; // Store data from all plans for dashboard
+        let currentTab = 'All';
+        let trackingStore = {};
+        let selectedMonths = [];
+        let selectedDurationsFromControl = [];
+        let selectedDurationsFromReceipt = [];
+        let selectedDurationsFromModified = [];
+        let selectedCategories = [];
+        let selectedGroups = [];
+
+        function setDashFilter(type, value, btn) {
+            if (type === 'plan') {
+                document.getElementById('dashPlanFilter').value = value;
+                document.querySelectorAll('#dashPlanButtons .btn').forEach(b => b.classList.remove('active'));
+            } else if (type === 'group') {
+                document.getElementById('dashGroupFilter').value = value;
+                document.querySelectorAll('#dashGroupButtons .btn').forEach(b => b.classList.remove('active'));
+            } else if (type === 'category') {
+                document.getElementById('dashCategoryFilter').value = value;
+                document.querySelectorAll('.dash-cat-btn').forEach(b => b.classList.remove('active'));
+            }
+            if (btn) btn.classList.add('active');
+            renderDashboard();
+        }
+
+        function calculateDaysElapsed(dateStr) {
+            const isoDate = getISODate(dateStr);
+            if (!isoDate) return null;
+
+            const [y, m, d] = isoDate.split('-').map(v => parseInt(v));
+            const date = new Date(y, m - 1, d);
+            const today = new Date();
+
+            const diffTime = today.getTime() - date.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+            return diffDays;
+        }
+
+        function switchPlan(planId) {
+            currentPlan = planId;
+            const plan = PLANS[planId];
+
+            // Update UI buttons
+            document.getElementById('btnPlanBru').classList.toggle('active', planId === 'bru');
+            document.getElementById('btnPlanYut').classList.toggle('active', planId === 'yut');
+            document.getElementById('btnPlanFun').classList.toggle('active', planId === 'fun');
+            document.getElementById('btnPlanHail').classList.toggle('active', planId === 'hail');
+
+            // Update Navbar Color
+            const navbar = document.querySelector('.navbar');
+            navbar.style.backgroundColor = plan.color;
+            navbar.classList.remove('bg-primary');
+
+            // Adjust text color for yellow (yut)
+            if (planId === 'yut') {
+                navbar.classList.remove('navbar-dark');
+                navbar.classList.add('navbar-light');
+            } else {
+                navbar.classList.remove('navbar-light');
+                navbar.classList.add('navbar-dark');
+            }
+
+            // Update Title
+            const title = `ระบบติดตามเอกสาร - ${plan.name}`;
+            document.getElementById('pageTitle').innerText = title;
+            document.title = title;
+
+            // Reset tab and fetch data
+            currentTab = 'All';
+            fetchData();
+        }
+
+        async function showPage(page) {
+            // Hide all pages
+            document.getElementById('trackingPage').classList.add('d-none');
+            document.getElementById('dashboardPage').classList.add('d-none');
+            document.getElementById('summaryPage').classList.add('d-none');
+
+            // Remove active class from all nav links
+            document.getElementById('navTracking').classList.remove('active');
+            document.getElementById('navDashboard').classList.remove('active');
+            document.getElementById('navSummary').classList.remove('active');
+
+            if (page === 'dashboard') {
+                document.getElementById('dashboardPage').classList.remove('d-none');
+                document.getElementById('navDashboard').classList.add('active');
+                document.getElementById('planButtons').classList.add('d-none');
+                document.getElementById('notificationArea').classList.add('d-none');
+                await fetchAllData();
+                renderDashboard();
+            } else if (page === 'summary') {
+                document.getElementById('summaryPage').classList.remove('d-none');
+                document.getElementById('navSummary').classList.add('active');
+                document.getElementById('planButtons').classList.add('d-none');
+                document.getElementById('notificationArea').classList.add('d-none');
+                switchSummaryPlan(currentPlan);
+            } else {
+                document.getElementById('trackingPage').classList.remove('d-none');
+                document.getElementById('navTracking').classList.add('active');
+                document.getElementById('planButtons').classList.remove('d-none');
+                document.getElementById('notificationArea').classList.remove('d-none');
+                
+                // Update top plan buttons to match currentPlan
+                document.querySelectorAll('#planButtons .btn').forEach(btn => {
+                    const id = btn.id.replace('btnPlan', '').toLowerCase();
+                    btn.classList.toggle('active', id === currentPlan.toLowerCase());
+                });
+                
+                fetchData();
+            }
+        }
+
+        async function fetchSummaryData() {
+            const plan = PLANS[currentPlan];
+            const baseUrl = plan.url.split('/export')[0];
+            const summaryUrl = `${baseUrl}/export?format=csv&gid=${plan.summaryGid}`;
+            
+            document.getElementById('summaryLoading').style.display = 'block';
+            try {
+                const response = await fetch(summaryUrl);
+                const csvText = await response.text();
+                Papa.parse(csvText, {
+                    skipEmptyLines: true,
+                    complete: function (results) {
+                        renderSummaryPage(results.data);
+                        document.getElementById('summaryLoading').style.display = 'none';
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching summary data:', error);
+                document.getElementById('summaryLoading').style.display = 'none';
+                alert('ไม่สามารถโหลดข้อมูลสรุปได้');
+            }
+        }
+
+        function switchSummaryPlan(planId) {
+            currentPlan = planId;
+            const plan = PLANS[planId];
+            
+            // Update UI buttons in Summary Page
+            const buttons = document.querySelectorAll('#summaryPlanTabs .btn');
+            buttons.forEach(btn => {
+                if (btn.getAttribute('onclick').includes(`'${planId}'`)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Update Global Navbar Color (Keep in sync with switchPlan)
+            const navbar = document.querySelector('.navbar');
+            navbar.style.backgroundColor = plan.color;
+            navbar.classList.remove('bg-primary');
+            if (planId === 'yut') {
+                navbar.classList.remove('navbar-dark');
+                navbar.classList.add('navbar-light');
+            } else {
+                navbar.classList.remove('navbar-light');
+                navbar.classList.add('navbar-dark');
+            }
+
+            // Update Global Title
+            const title = `ระบบติดตามเอกสาร - ${plan.name}`;
+            document.getElementById('pageTitle').innerText = title;
+            document.title = title;
+
+            // Update Summary Page Title
+            const summaryTitle = document.getElementById('summaryTitle');
+            if (summaryTitle) {
+                summaryTitle.innerText = `สรุปงบประมาณ (GF) - ${plan.name}`;
+                summaryTitle.style.color = plan.color;
+            }
+            
+            fetchSummaryData();
+        }
+
+        function renderSummaryPage(data) {
+            if (!data || data.length < 8) return;
+
+            const headerRow = data[6];
+            const subHeaderRow = data[7];
+            const tbody = document.getElementById('summaryBody');
+            const thead = document.getElementById('summaryHeader');
+            const plan = PLANS[currentPlan];
+
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+            
+            // Apply plan color to header
+            thead.style.backgroundColor = plan.color;
+            thead.classList.remove('bg-primary', 'table-primary');
+
+            // Columns to exclude: 3 (งบประมาณที่ได้รับ), 4 (ปรับฐานเพิ่ม), 5 (ลด), 7 (แผนสะสม), 17 (ผลต่าง แผน-ผล)
+            const excludeIndices = [3, 4, 5, 7, 17];
+
+            // Create headers
+            let headerHtml = '<tr>';
+            headerRow.forEach((cell, index) => {
+                if (index < 20 && !excludeIndices.includes(index)) {
+                    const mainText = (cell || '').trim().replace(/\n/g, '<br>');
+                    const subText = (subHeaderRow[index] || '').trim().replace(/\n/g, '<br>');
+                    const width = index === 0 ? 'width: 40px;' : 'min-width: 80px;';
+                    headerHtml += `<th style="${width}">${mainText}${subText ? '<br><small>' + subText + '</small>' : ''}</th>`;
+                }
+            });
+            headerHtml += '</tr>';
+            thead.innerHTML = headerHtml;
+
+                    // Create body rows starting from index 8
+                    for (let i = 8; i < data.length; i++) {
+                        const row = data[i];
+                        if (row.some(cell => cell.trim() !== '')) {
+                            const col0 = (row[0] || '').trim();
+                            const col1 = (row[1] || '').trim();
+
+                            // ซ่อน 1งบบุคลากร และหัวข้อย่อยที่เกี่ยวข้อง
+                            if (col0 === '1' || col0 === '1.1' || col0 === '1.2' || col0 === '1.3' || 
+                                col1.includes('- เงินเดือน') || col1.includes('- ค่าครองชีพ')) {
+                                continue;
+                            }
+
+                            let rowHtml = '<tr>';
+                            for (let j = 0; j < 20; j++) {
+                                if (excludeIndices.includes(j)) continue;
+                                
+                                const cell = (row[j] || '').trim();
+                                // Check if it's a number to align right
+                                const isNumber = cell !== '' && !isNaN(cell.replace(/,/g, '').replace(/%/g, '')) || cell.includes(',');
+                                
+                                let alignClass = isNumber ? 'text-end' : 'text-start';
+                                if (j === 0) alignClass = 'text-center'; // Center the 'ลำดับ' column
+                                
+                                // Formatting for special rows
+                                let rowClass = '';
+                                let rowStyle = '';
+                                if (col0 === '' && col1 && col1.includes('รวมทั้งสิ้น')) {
+                                    rowClass = 'fw-bold';
+                                    rowStyle = `background-color: ${plan.color}; color: ${currentPlan === 'yut' ? 'black' : 'white'};`;
+                                } else if (col0 && (col0.startsWith('A') || col0.startsWith('B') || col0.startsWith('C'))) {
+                                    // หมวด A, B, C และย่อย (A1, B1, C1...) ให้เป็นสีเทาอ่อน
+                                    rowClass = 'table-light fw-bold';
+                                } else if (col0) {
+                                    // ไล่สีตามระดับหัวข้อ (dots) ตามแผนที่เลือก
+                                    const dotCount = (col0.match(/\./g) || []).length;
+                                    const levelIndex = Math.min(dotCount, 2);
+                                    const level = plan.levels[levelIndex];
+                                    rowClass = 'fw-bold';
+                                    rowStyle = `background-color: ${level.bg}; color: ${level.text};`;
+                                }
+                                
+                                rowHtml += `<td class="${alignClass} ${rowClass}" style="${rowStyle}">${cell}</td>`;
+                            }
+                            rowHtml += '</tr>';
+                            tbody.innerHTML += rowHtml;
+                        }
+                    }
+        }
+
+        function exportSummaryToPDF() {
+            window.print();
+        }
+
+        async function fetchAllData() {
+            document.getElementById('loading').style.display = 'block';
+            await fetchDatabase();
+
+            const fetchPromises = Object.keys(PLANS).map(async (planId) => {
+                try {
+                    const response = await fetch(PLANS[planId].url);
+                    if (response.ok) {
+                        const csvText = await response.text();
+                        return new Promise((resolve) => {
+                            Papa.parse(csvText, {
+                                header: true,
+                                skipEmptyLines: true,
+                                transformHeader: h => h.trim(),
+                                complete: function (results) {
+                                    allPlansData[planId] = processRawData(results.data);
+                                    resolve();
+                                }
+                            });
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Error fetching ${planId}:`, error);
+                }
+            });
+
+            await Promise.all(fetchPromises);
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function processRawData(data) {
+            return data.map(row => {
+                let dept = (row['ฝ่าย'] || '').trim().replace(/\.$/, '');
+                return {
+                    id: (row['ลำดับที่'] || '').toString().trim(),
+                    bookNum: (row['เลขหนังสือ'] || '').toString().trim(),
+                    controlDate: (row['วันที่ลงคุม'] || '').toString().trim(),
+                    name: (row['ชื่อผู้เบิก'] || '').toString().trim(),
+                    dept: dept,
+                    category: (row['หมวด'] || '').trim(),
+                    amount: (row['วงเงิน'] || '').toString().trim(),
+                    cutoffNum: (row['เลขที่ระบบตัดยอด'] || '').toString().trim(),
+                    originalNotes: row['หมายเหตุ'] || '',
+                    status: row['Note'] || ''
+                };
+            }).filter(item => item.id && item.bookNum);
+        }
+
+        function renderDashboard() {
+            const groupStats = {};
+            const planStats = {};
+            const categoryStats = {};
+            const deptStats = {};
+            let totalAmount = 0;
+            let totalItemsCount = 0;
+
+            const planFilter = document.getElementById('dashPlanFilter').value;
+            const groupFilter = document.getElementById('dashGroupFilter').value;
+            const categoryFilter = document.getElementById('dashCategoryFilter').value;
+
+            Object.keys(PLANS).forEach(planId => {
+                if (planFilter !== 'All' && planFilter !== planId) return;
+
+                const data = allPlansData[planId] || [];
+                if (!planStats[planId]) {
+                    planStats[planId] = { count: 0, amount: 0, name: PLANS[planId].name };
+                }
+
+                data.forEach(item => {
+                    const amount = parseFloat((item.amount || '0').replace(/,/g, '')) || 0;
+                    const catCode = item.category || 'N/A';
+                    const groupCode = catCode.charAt(0).toUpperCase();
+
+                    // Apply filters
+                    if (groupFilter !== 'All' && groupFilter !== groupCode) return;
+                    if (categoryFilter !== 'All' && categoryFilter !== catCode) return;
+
+                    // Group stats
+                    if (!groupStats[groupCode]) {
+                        groupStats[groupCode] = { count: 0, amount: 0, name: GROUPS[groupCode] || 'อื่นๆ' };
+                    }
+                    groupStats[groupCode].count++;
+                    groupStats[groupCode].amount += amount;
+
+                    // Plan stats
+                    planStats[planId].count++;
+                    planStats[planId].amount += amount;
+
+                    // Dept stats
+                    const deptName = item.dept || 'ไม่ระบุ';
+                    if (!deptStats[deptName]) {
+                        deptStats[deptName] = { count: 0, amount: 0 };
+                    }
+                    deptStats[deptName].count++;
+                    deptStats[deptName].amount += amount;
+
+                    // Category stats
+                    if (!categoryStats[catCode]) {
+                        categoryStats[catCode] = { count: 0, amount: 0, name: CATEGORIES[catCode] || 'อื่นๆ' };
+                    }
+                    categoryStats[catCode].count++;
+                    categoryStats[catCode].amount += amount;
+
+                    totalAmount += amount;
+                    totalItemsCount++;
+                });
+            });
+
+            // Render summary cards
+            const summaryContainer = document.getElementById('dashboardSummary');
+            const visiblePlans = Object.keys(planStats).filter(id => planStats[id].count > 0);
+
+            if (visiblePlans.length === 0) {
+                summaryContainer.innerHTML = '<div class="col-12 text-center text-muted p-5">ไม่พบข้อมูลที่ตรงกับเงื่อนไขการกรอง</div>';
+            } else {
+                summaryContainer.innerHTML = visiblePlans.map(planId => {
+                    const stats = planStats[planId];
+                    const plan = PLANS[planId];
+                    return `
+                        <div class="col-md-3 mb-3">
+                            <div class="card p-3 text-white" style="background-color: ${plan.color}">
+                                <h6>${plan.name}</h6>
+                                <h3>${stats.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</h3>
+                                <small>${stats.count.toLocaleString()} รายการ</small>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Render Group Table
+            const groupTable = document.getElementById('groupSummaryTable');
+            const groupsToShow = groupFilter === 'All' ? Object.keys(GROUPS) : [groupFilter];
+            groupTable.innerHTML = groupsToShow.map(code => {
+                const stats = groupStats[code] || { count: 0, amount: 0, name: GROUPS[code] || 'อื่นๆ' };
+                if (groupFilter !== 'All' && stats.count === 0) return '';
+                return `
+                    <tr>
+                        <td><strong>${code}</strong> - ${stats.name}</td>
+                        <td class="text-end">${stats.count.toLocaleString()}</td>
+                        <td class="text-end">${stats.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="3" class="text-center text-muted">ไม่มีข้อมูล</td></tr>';
+
+            // Render Plan Table
+            const planTable = document.getElementById('planSummaryTable');
+            planTable.innerHTML = Object.keys(planStats).map(planId => {
+                const stats = planStats[planId];
+                return `
+                    <tr>
+                        <td>${stats.name}</td>
+                        <td class="text-end">${stats.count.toLocaleString()}</td>
+                        <td class="text-end">${stats.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="3" class="text-center text-muted">ไม่มีข้อมูล</td></tr>';
+
+            // Render Dept Table
+            const deptTable = document.getElementById('deptSummaryTable');
+            const sortedDepts = Object.keys(deptStats).sort((a, b) => deptStats[b].amount - deptStats[a].amount);
+            deptTable.innerHTML = sortedDepts.map(dept => {
+                const stats = deptStats[dept];
+                return `
+                    <tr>
+                        <td>${dept}</td>
+                        <td class="text-end">${stats.count.toLocaleString()}</td>
+                        <td class="text-end">${stats.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="3" class="text-center text-muted">ไม่มีข้อมูล</td></tr>';
+        }
+
+        async function fetchDatabase() {
+            try {
+                const response = await fetch(DB_URL);
+                if (response.ok) {
+                    const csvText = await response.text();
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        transformHeader: h => h.trim(),
+                        complete: function (results) {
+                            results.data.forEach(row => {
+                                const planId = (row.planId || '').trim();
+                                const id = (row.id || '').trim();
+                                if (planId && id) {
+                                    const key = `${planId}-${id}`;
+                                    trackingStore[key] = {
+                                        step: (row.step || row['ขั้นตอน'] || row['สถานะ'] || '').trim(),
+                                        location: (row.location || row['วันที่ได้รับเอกสาร'] || row['วันที่ได้รับ'] || '').trim(),
+                                        notes: (row.notes || row['หมายเหตุ'] || row['หมายเหตุเพิ่มเติม'] || '').trim(),
+                                        // Handle cases where the lastModified header might be missing or named differently (including Thai)
+                                        lastModified: (row.lastModified || row[''] || row['__unnamed__'] || row['วันที่แก้ไขล่าสุด'] || row['เปลี่ยนแปลงล่าสุด'] || '').trim()
+                                    };
+                                }
+                            });
+                            renderTable();
+                        }
+                    });
+                }
+            } catch (error) {
+                console.warn('Sync with database failed:', error);
+            }
+        }
+
+        async function fetchData() {
+            document.getElementById('loading').style.display = 'block';
+            // Fetch database sync first
+            await fetchDatabase();
+
+            try {
+                const response = await fetch(PLANS[currentPlan].url);
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error('ไม่ได้รับอนุญาตให้เข้าถึงข้อมูล (กรุณาตั้งค่า Google Sheet ให้เป็นแบบสาธารณะ)');
+                    }
+                    throw new Error('ไม่สามารถโหลดข้อมูลได้');
+                }
+                const csvText = await response.text();
+
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    transformHeader: h => h.trim(),
+                    complete: function (results) {
+                        documentData = processRawData(results.data);
+                        updateTabs();
+                        renderTable();
+                    },
+                    error: function (err) {
+                        console.error('Parsing error:', err);
+                        alert('เกิดข้อผิดพลาดในการประมวลผลข้อมูล');
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                alert(error.message);
+                // Clear table on error
+                documentData = [];
+                renderTable();
+            }
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function updateTabs() {
+            const depts = [...new Set(documentData.map(item => item.dept))].filter(d => d).sort();
+            const tabList = document.getElementById('deptTabs');
+
+            // Keep "All" tab and remove others
+            const allTab = tabList.querySelector('#all-tab').parentElement;
+            tabList.innerHTML = '';
+            tabList.appendChild(allTab);
+
+            depts.forEach(dept => {
+                const li = document.createElement('li');
+                li.className = 'nav-item';
+                li.role = 'presentation';
+                li.innerHTML = `<button class="nav-link ${currentTab === dept ? 'active' : ''}" onclick="switchTab('${dept}')" type="button">${dept}</button>`;
+                tabList.appendChild(li);
+            });
+        }
+
+        function switchTab(dept) {
+            currentTab = dept;
+            document.querySelectorAll('#deptTabs .nav-link').forEach(btn => {
+                if (btn.innerText === dept || (dept === 'All' && btn.id === 'all-tab')) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            renderTable(document.getElementById('searchInput').value);
+        }
+
+        function getISODate(dateStr) {
+            if (!dateStr || dateStr === '-') return null;
+
+            dateStr = dateStr.toString().trim();
+            const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const thaiMonthsFull = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+
+            // 1. Try Regex-based parsing for Thai formats (handles "ว.12มี.ค. 69", "12 มี.ค. 69", "12 มี.ค.2569", etc.)
+            // The regex matches: optional "ว.", day (1-2 digits), optional space, month (short or full), optional space, year (2-4 digits)
+            const regex = /(?:ว\.)?(\d{1,2})\s*(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.|มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)\s*(\d{2,4})/;
+            const match = dateStr.match(regex);
+
+            if (match) {
+                let day = parseInt(match[1]);
+                let monthStr = match[2];
+                let year = parseInt(match[3]);
+
+                let monthIdx = thaiMonths.indexOf(monthStr);
+                if (monthIdx === -1) monthIdx = thaiMonthsFull.indexOf(monthStr);
+
+                if (monthIdx !== -1 && !isNaN(day) && !isNaN(year)) {
+                    if (year < 100) {
+                        if (year <= 40) year += 2000; // 24 -> 2024 (CE)
+                        else year += 2500; // 67 -> 2567 (BE)
+                    }
+                    if (year > 2400) year -= 543;
+
+                    const date = new Date(year, monthIdx, day);
+                    if (!isNaN(date.getTime())) {
+                        const y = date.getFullYear();
+                        const m = String(date.getMonth() + 1).padStart(2, '0');
+                        const d = String(date.getDate()).padStart(2, '0');
+                        return `${y}-${m}-${d}`;
+                    }
+                }
+            }
+
+            // Fallback for other formats (e.g., "DD/MM/YYYY" or "YYYY-MM-DD")
+            const normalized = dateStr.replace(/[-.]/g, '/');
+            let date;
+            if (normalized.includes('/')) {
+                const parts = normalized.split('/');
+                if (parts.length < 3) return null;
+
+                let day, month, year;
+                if (parseInt(parts[0]) > 1000) { // YYYY/MM/DD
+                    year = parseInt(parts[0]);
+                    month = parseInt(parts[1]) - 1;
+                    day = parseInt(parts[2]);
+                } else { // DD/MM/YYYY
+                    day = parseInt(parts[0]);
+                    month = parseInt(parts[1]) - 1;
+                    year = parseInt(parts[2]);
+                }
+
+                if (year < 100) {
+                    if (year <= 40) year += 2000; // 24 -> 2024 (CE)
+                    else year += 2500; // 67 -> 2567 (BE)
+                }
+                if (year > 2400) year -= 543; // Convert BE to CE
+
+                date = new Date(year, month, day);
+            } else {
+                // Try standard parsing
+                date = new Date(dateStr);
+                // If it's a BE year like 2567-02-13, browser might parse it as year 2567
+                if (!isNaN(date.getTime()) && date.getFullYear() > 2400) {
+                    date = new Date(date.getFullYear() - 543, date.getMonth(), date.getDate());
+                }
+            }
+
+            if (isNaN(date.getTime())) return null;
+
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function parseMissionEndDate(notes) {
+            if (!notes) return null;
+
+            const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const thaiMonthsFull = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+
+            let lastDate = null;
+
+            const normalizeYear = (y) => {
+                if (y < 100) {
+                    if (y <= 40) y += 2000;
+                    else y += 2500;
+                }
+                if (y > 2400) y -= 543;
+                return y;
+            };
+
+            const getMonthIdx = (str) => {
+                let idx = thaiMonths.indexOf(str);
+                if (idx === -1) idx = thaiMonths.findIndex(m => str.includes(m.replace('.', '')));
+                if (idx === -1) idx = thaiMonthsFull.findIndex(m => str.includes(m));
+                return idx;
+            };
+
+            // ใช้ Regex ที่รองรับทั้งแบบระบุวันที่ และไม่ระบุวันที่ (เฉพาะเดือน)
+            // เพิ่มการรองรับ prefix "ว."
+            const combinedRegex = /(?:ว\.)?(?:(\d{1,2})\s*)?([ก-๙\.]+)\s*(\d{2,4})/g;
+            let match;
+
+            while ((match = combinedRegex.exec(notes)) !== null) {
+                let day = match[1] ? parseInt(match[1]) : null;
+                let monthIdx = getMonthIdx(match[2]);
+                let year = normalizeYear(parseInt(match[3]));
+
+                if (monthIdx !== -1) {
+                    let date;
+                    if (day) {
+                        date = new Date(year, monthIdx, day);
+                    } else {
+                        // กรณีมาแค่เดือน -> ให้เป็นวันสุดท้ายของเดือนนั้นๆ
+                        date = new Date(year, monthIdx + 1, 0);
+                    }
+
+                    date.setHours(0, 0, 0, 0);
+                    if (!lastDate || date > lastDate) {
+                        lastDate = date;
+                    }
+                }
+            }
+
+            return lastDate;
+        }
+
+        function formatDateThai(dateStr) {
+            const iso = getISODate(dateStr);
+            if (!iso) return dateStr || '-';
+
+            const [y, m, d] = iso.split('-').map(v => parseInt(v));
+            const date = new Date(y, m - 1, d);
+
+            const monthNamesShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const thaiYear = date.getFullYear() + 543;
+            const shortThaiYear = thaiYear.toString().slice(-2);
+
+            return `${d} ${monthNamesShort[date.getMonth()]} ${shortThaiYear}`;
+        }
+
+        function getFilteredData(filter = '') {
+            let filteredData = documentData;
+
+            // Filter by tab
+            if (currentTab !== 'All') {
+                filteredData = filteredData.filter(item => item.dept === currentTab);
+            }
+
+            // Filter by Group
+            const checkedGroups = Array.from(document.querySelectorAll('.group-filter:checked')).map(cb => cb.value);
+            if (checkedGroups.length < 3) {
+                filteredData = filteredData.filter(item => {
+                    const group = (item.category || '').charAt(0).toUpperCase();
+                    return checkedGroups.includes(group);
+                });
+            }
+
+            // Filter by Category
+            const checkedCategories = Array.from(document.querySelectorAll('.category-filter:checked')).map(cb => cb.value);
+            const totalCategories = Object.keys(CATEGORIES).length;
+            if (checkedCategories.length < totalCategories) {
+                filteredData = filteredData.filter(item => {
+                    const cat = (item.category || '').trim();
+                    return checkedCategories.includes(cat);
+                });
+            }
+
+            // Filter by Checkboxes (Step)
+            const checkedSteps = Array.from(document.querySelectorAll('.step-filter:checked')).map(cb => cb.value);
+            filteredData = filteredData.filter(item => {
+                const key = `${currentPlan}-${item.id}`;
+                const tracking = trackingStore[key] || { step: '' };
+
+                // Check for Mission Progress Auto-Step
+                const missionEndDate = parseMissionEndDate(item.originalNotes);
+                let step = tracking.step;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (missionEndDate && today < missionEndDate) {
+                    step = 'ยังไม่เสร็จสิ้นภารกิจ';
+                } else if (step === 'ยังไม่เสร็จสิ้นภารกิจ') {
+                    step = '';
+                }
+
+                if (!step) step = 'WAITING';
+
+                let filterValue = step;
+                if (step.includes('ยกเลิก/ไม่เบิก')) {
+                    filterValue = 'ยกเลิก/ไม่เบิก';
+                } else if (step === 'ยังไม่ได้รับเอกสารตัวจริง') {
+                    filterValue = 'ยังไม่ได้รับเอกสารตัวจริง';
+                } else if (step === 'อยู่ระหว่างแก้ไข') {
+                    filterValue = 'อยู่ระหว่างแก้ไข';
+                } else if (step === 'ยังไม่เสร็จสิ้นภารกิจ') {
+                    filterValue = 'ยังไม่เสร็จสิ้นภารกิจ';
+                } else if (step === 'กำลังดำเนินการ') {
+                    filterValue = 'กำลังดำเนินการ';
+                } else if (step === 'ส่งไปยังกลุ่ม/ฝ่าย') {
+                    filterValue = 'ส่งไปยังกลุ่ม/ฝ่าย';
+                } else if (step === 'ส่งเบิกแล้ว (การเงิน)') {
+                    filterValue = 'ส่งเบิกแล้ว (การเงิน)';
+                } else if (step !== 'WAITING' && step !== 'ยกเลิก/ไม่เบิก') {
+                    filterValue = 'กำลังดำเนินการ';
+                }
+
+                return checkedSteps.includes(filterValue);
+            });
+
+            // Filter by Month
+            if (selectedMonths.length > 0) {
+                filteredData = filteredData.filter(item => {
+                    const docDate = getISODate(item.controlDate);
+                    if (!docDate) return false;
+                    const [year, month, day] = docDate.split('-').map(v => parseInt(v));
+                    return selectedMonths.includes(month.toString());
+                });
+            }
+
+            // Filter by Duration (Control Date)
+            if (selectedDurationsFromControl.length > 0) {
+                filteredData = filteredData.filter(item => {
+                    const daysElapsed = calculateDaysElapsed(item.controlDate);
+                    if (daysElapsed === null) return false;
+
+                    for (let duration of selectedDurationsFromControl) {
+                        const durationDays = parseInt(duration);
+                        if (daysElapsed >= durationDays) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            }
+
+            // Filter by Duration (Receipt Date)
+            if (selectedDurationsFromReceipt.length > 0) {
+                filteredData = filteredData.filter(item => {
+                    const key = `${currentPlan}-${item.id}`;
+                    const tracking = trackingStore[key] || { step: '', location: '', notes: '' };
+                    const daysElapsed = calculateDaysElapsed(tracking.location);
+                    if (daysElapsed === null) return false;
+
+                    for (let duration of selectedDurationsFromReceipt) {
+                        const durationDays = parseInt(duration);
+                        if (daysElapsed >= durationDays) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            }
+
+            // Filter by Duration (Modified Date)
+            if (selectedDurationsFromModified.length > 0) {
+                filteredData = filteredData.filter(item => {
+                    const key = `${currentPlan}-${item.id}`;
+                    const tracking = trackingStore[key] || { step: '', location: '', notes: '', lastModified: '' };
+
+                    let daysSinceModified = calculateDaysElapsed(tracking.lastModified);
+
+                    // หากไม่มีข้อมูล ให้ถือว่าเป็นเกิน 60 วันไปเลย (ตามโจทย์)
+                    if (daysSinceModified === null) {
+                        daysSinceModified = 999; // มากกว่า 60
+                    }
+
+                    for (let duration of selectedDurationsFromModified) {
+                        const durationDays = parseInt(duration);
+                        if (daysSinceModified >= durationDays) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            }
+
+            // Filter by Date Range (Control Date)
+            const startDate = document.getElementById('startDate').value;
+            const endDateRange = document.getElementById('endDate').value;
+            if (startDate || endDateRange) {
+                console.log('Filtering by date range:', { startDate, endDateRange });
+                filteredData = filteredData.filter(item => {
+                    const docDate = getISODate(item.controlDate);
+                    if (!docDate) {
+                        console.log(`Skipping item ${item.bookNum} - invalid date: "${item.controlDate}"`);
+                        return false;
+                    }
+
+                    const isAfterStart = !startDate || docDate >= startDate;
+                    const isBeforeEnd = !endDateRange || docDate <= endDateRange;
+
+                    console.log(`Item ${item.bookNum}: docDate=${docDate}, startDate=${startDate}, match=${isAfterStart && isBeforeEnd}`);
+
+                    if (isAfterStart && isBeforeEnd) {
+                        return true;
+                    }
+                    return false;
+                });
+                console.log('Results after date filter:', filteredData.length);
+            }
+
+            // Filter by Mission Status
+            const checkedMissionStatuses = Array.from(document.querySelectorAll('.mission-filter:checked')).map(cb => cb.value);
+            if (checkedMissionStatuses.length < 4) { // Only filter if not all are checked (now 4 options)
+                filteredData = filteredData.filter(item => {
+                    const missionEndDate = parseMissionEndDate(item.originalNotes);
+                    let status = 'NODATE';
+                    if (missionEndDate) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        if (today >= missionEndDate) {
+                            const diffTime = today.getTime() - missionEndDate.getTime();
+                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            status = diffDays > 15 ? 'OVER15' : 'ENDED';
+                        } else {
+                            status = 'PROGRESS';
+                        }
+                    }
+                    return checkedMissionStatuses.includes(status);
+                });
+            }
+
+            // Filter by search text
+            if (filter) {
+                const lowerFilter = filter.toLowerCase();
+                filteredData = filteredData.filter(item => {
+                    const searchStr = `${item.bookNum} ${item.controlDate} ${item.name} ${item.dept} ${item.category} ${item.status} ${item.cutoffNum}`.toLowerCase();
+                    return searchStr.includes(lowerFilter);
+                });
+            }
+
+            // Filter by Cut-off status
+            const showCutoff = document.getElementById('filterShowCutoff')?.checked;
+            const onlyCutoff = document.getElementById('filterOnlyCutoff')?.checked;
+
+            if (onlyCutoff) {
+                filteredData = filteredData.filter(item => item.cutoffNum);
+            } else if (!showCutoff) {
+                filteredData = filteredData.filter(item => !item.cutoffNum);
+            }
+
+            return filteredData;
+        }
+
+        function normalizeDateForExport(dateStr) {
+            if (!dateStr || dateStr === '-') return '-';
+
+            let date;
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                let day = parseInt(parts[0]);
+                let month = parseInt(parts[1]) - 1;
+                let year = parseInt(parts[2]);
+                if (year < 100) {
+                    if (year <= 40) year += 2000; // 24 -> 2024 (CE)
+                    else year += 2500; // 67 -> 2567 (BE)
+                }
+                if (year >= 2000 && year < 2100) year += 543;
+                date = new Date(year - 543, month, day);
+            } else {
+                date = new Date(dateStr);
+            }
+
+            if (isNaN(date)) return dateStr;
+            const thaiYear = date.getFullYear() + 543;
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${day}/${month}/${thaiYear}`;
+        }
+
+        function getFilterInfo() {
+            const monthNamesShort = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            const monthNamesFull = ["", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+
+            const selectedMonthNames = selectedMonths.length > 0
+                ? selectedMonths.map(m => monthNamesFull[parseInt(m)]).join(', ')
+                : 'ทั้งหมด';
+
+            const checkedSteps = Array.from(document.querySelectorAll('.step-filter:checked')).map(cb => {
+                const label = cb.nextElementSibling?.textContent || cb.value;
+                return label;
+            }).join(', ');
+
+            const durationControl = selectedDurationsFromControl.length > 0
+                ? selectedDurationsFromControl.map(d => `เกิน ${d} วัน`).join(', ')
+                : 'ทั้งหมด';
+
+            const durationReceipt = selectedDurationsFromReceipt.length > 0
+                ? selectedDurationsFromReceipt.map(d => `เกิน ${d} วัน`).join(', ')
+                : 'ทั้งหมด';
+
+            const deptInfo = currentTab !== 'All' ? currentTab : 'ทั้งหมด';
+
+            return {
+                monthInfo: selectedMonthNames,
+                statusInfo: checkedSteps || 'ทั้งหมด',
+                durationControlInfo: durationControl,
+                durationReceiptInfo: durationReceipt,
+                deptInfo: deptInfo
+            };
+        }
+
+        function exportToExcel() {
+            const checkedRows = Array.from(document.querySelectorAll('.row-checkbox:checked'));
+
+            if (checkedRows.length === 0) {
+                alert('กรุณาเลือกแถวที่ต้องการ export');
+                return;
+            }
+
+            const exportRows = checkedRows.map(checkbox => {
+                const key = checkbox.getAttribute('data-key');
+                const item = documentData.find(d => `${currentPlan}-${d.id}` === key);
+                if (!item) return null;
+
+                const tracking = trackingStore[key] || {
+                    step: '',
+                    location: '',
+                    notes: '',
+                    lastModified: ''
+                };
+
+                // Check for Mission Progress Auto-Step
+                const missionEndDate = parseMissionEndDate(item.originalNotes);
+                let currentStep = tracking.step;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (missionEndDate && today < missionEndDate) {
+                    currentStep = 'ยังไม่เสร็จสิ้นภารกิจ';
+                } else if (currentStep === 'ยังไม่เสร็จสิ้นภารกิจ') {
+                    currentStep = '';
+                }
+
+                return {
+                    'แผน': PLANS[currentPlan].name,
+                    'ลำดับ': item.id,
+                    'เลขหนังสือ': item.bookNum,
+                    'วันที่ลงคุม': normalizeDateForExport(item.controlDate),
+                    'ชื่อผู้เบิก': item.name,
+                    'ฝ่าย': item.dept,
+                    'วงเงิน': item.amount || '-',
+                    'หมวด': item.category,
+                    'ขั้นตอนปัจจุบัน': currentStep || 'รอการกรอก',
+                    'วันที่ได้รับเอกสาร': normalizeDateForExport(tracking.location),
+                    'เปลี่ยนแปลงล่าสุด': normalizeDateForExport(tracking.lastModified),
+                    'สถานะ': item.status || '',
+                    'หมายเหตุ': tracking.notes || '',
+                    'หมายเหตุต้นฉบับ': item.originalNotes || ''
+                };
+            }).filter(row => row !== null);
+
+            if (exportRows.length === 0) {
+                alert('ไม่มีข้อมูลให้ส่งออก');
+                return;
+            }
+
+            const filterInfo = getFilterInfo();
+            const totalAmount = exportRows.reduce((sum, row) => {
+                const amount = parseFloat((row['วงเงิน'] || '0').replace(/,/g, '').trim()) || 0;
+                return sum + amount;
+            }, 0);
+
+            const wb = XLSX.utils.book_new();
+            const headers = Object.keys(exportRows[0]);
+
+            const dataArray = [
+                ['ระบบติดตามเอกสาร - ' + PLANS[currentPlan].name],
+                ['เดือน: ' + filterInfo.monthInfo, 'สถานะ: ' + filterInfo.statusInfo, 'ฝ่าย: ' + filterInfo.deptInfo],
+                ['ระยะเวลา (วันที่ลงคุม): ' + filterInfo.durationControlInfo, 'ระยะเวลา (วันที่ได้รับเอกสาร): ' + filterInfo.durationReceiptInfo],
+                [],
+                headers,
+                ...exportRows.map(row => headers.map(h => row[h])),
+                [],
+                [...new Array(headers.indexOf('วงเงิน')).fill(''), 'รวมทั้งสิ้น', totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet(dataArray, { cellFormula: false });
+
+            const titleStyle = {
+                font: { name: 'Sarabun', size: 14, bold: true, color: { rgb: 'FFFFFF' } },
+                fill: { fgColor: { rgb: '0070C0' } },
+                alignment: { horizontal: 'center', vertical: 'center' }
+            };
+
+            const headerStyle = {
+                font: { name: 'Sarabun', size: 11, bold: true, color: { rgb: 'FFFFFF' } },
+                fill: { fgColor: { rgb: '0070C0' } },
+                alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+                border: {
+                    top: { style: 'medium', color: { rgb: '004B96' } },
+                    bottom: { style: 'medium', color: { rgb: '004B96' } },
+                    left: { style: 'medium', color: { rgb: '004B96' } },
+                    right: { style: 'medium', color: { rgb: '004B96' } }
+                }
+            };
+
+            const filterStyle = {
+                font: { name: 'Sarabun', size: 10, color: { rgb: '333333' } },
+                alignment: { vertical: 'center', wrapText: true },
+                fill: { fgColor: { rgb: 'E7F0F7' } },
+                border: {
+                    top: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                    bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                    left: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                    right: { style: 'thin', color: { rgb: 'D3D3D3' } }
+                }
+            };
+
+            const cellStyle = {
+                font: { name: 'Sarabun', size: 10 },
+                alignment: { vertical: 'center', wrapText: true },
+                border: {
+                    top: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                    bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                    left: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                    right: { style: 'thin', color: { rgb: 'D3D3D3' } }
+                }
+            };
+
+            ws['A1'].s = titleStyle;
+
+            for (let c = 0; c < headers.length; c++) {
+                const cellAddress = XLSX.utils.encode_cell({ r: 1, c: c });
+                if (ws[cellAddress]) {
+                    ws[cellAddress].s = filterStyle;
+                }
+            }
+
+            for (let c = 0; c < headers.length; c++) {
+                const cellAddress = XLSX.utils.encode_cell({ r: 4, c: c });
+                ws[cellAddress].s = headerStyle;
+
+                if (!ws[cellAddress]) {
+                    ws[cellAddress] = { v: headers[c] };
+                }
+                ws[cellAddress].s = headerStyle;
+            }
+
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let r = 5; r <= range.e.r; r++) {
+                for (let c = 0; c <= range.e.c; c++) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: r, c: c });
+                    if (ws[cellAddress]) {
+                        ws[cellAddress].s = cellStyle;
+                    }
+                }
+            }
+
+            ws['!cols'] = [
+                { wch: 12 }, // แผน
+                { wch: 8 },  // ลำดับ
+                { wch: 15 }, // เลขหนังสือ
+                { wch: 14 }, // วันที่ลงคุม
+                { wch: 20 }, // ชื่อผู้เบิก
+                { wch: 12 }, // ฝ่าย
+                { wch: 15 }, // วงเงิน
+                { wch: 12 }, // หมวด
+                { wch: 20 }, // ขั้นตอนปัจจุบัน
+                { wch: 14 }, // วันที่ได้รับเอกสาร
+                { wch: 14 }, // เปลี่ยนแปลงล่าสุด
+                { wch: 12 }, // สถานะ
+                { wch: 20 }, // หมายเหตุ
+                { wch: 20 }  // หมายเหตุต้นฉบับ
+            ];
+
+            ws['!rows'] = [
+                { hpt: 25 },
+                { hpt: 20 },
+                { hpt: 20 },
+                { hpt: 5 },
+                { hpt: 25 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, PLANS[currentPlan].name);
+
+            const fileName = `export_${currentPlan}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        function exportToPDF() {
+            const filterInfo = getFilterInfo();
+            const today = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+            const themeColor = PLANS[currentPlan].color || '#0070C0';
+
+            let dataToExport = [];
+            const checkedRows = document.querySelectorAll('.row-checkbox:checked');
+            if (checkedRows.length > 0) {
+                const selectedKeys = new Set(Array.from(checkedRows).map(cb => cb.getAttribute('data-key')));
+                dataToExport = documentData.filter(item => selectedKeys.has(`${currentPlan}-${item.id}`));
+            } else {
+                dataToExport = getFilteredData(document.getElementById('searchInput').value);
+            }
+
+            if (dataToExport.length === 0) {
+                alert('ไม่มีข้อมูลให้ส่งออก');
+                return;
+            }
+
+            // Group by category and calculate summary
+            const categorySummary = {};
+            let totalAmount = 0;
+            dataToExport.forEach(item => {
+                const amount = parseFloat((item.amount || '0').replace(/,/g, '').trim()) || 0;
+                totalAmount += amount;
+                const catCode = item.category || 'อื่นๆ';
+                if (!categorySummary[catCode]) {
+                    categorySummary[catCode] = { count: 0, amount: 0, name: CATEGORIES[catCode] || 'อื่นๆ' };
+                }
+                categorySummary[catCode].count++;
+                categorySummary[catCode].amount += amount;
+            });
+
+            // สไตล์สำหรับการพิมพ์
+            let printStyle = `
+                <style>
+                    @font-face {
+                        font-family: 'Sarabun';
+                        src: url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap');
+                    }
+                    body { 
+                        font-family: 'Sarabun', sans-serif; 
+                        margin: 0; 
+                        padding: 10mm;
+                        background: white;
+                    }
+                    @page { 
+                        size: landscape; 
+                        margin: 5mm; 
+                    }
+                    .header { 
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center; 
+                        border-bottom: 2px solid ${themeColor}; 
+                        margin-bottom: 5px;
+                        padding-bottom: 5px;
+                    }
+                    h2 { color: ${themeColor}; margin: 0; font-size: 18px; }
+                    .filter-info { margin-bottom: 5px; font-size: 10px; color: #333; display: flex; gap: 15px; }
+                    .summary-box { 
+                        background-color: #f8f9fa; 
+                        border: 1px solid #dee2e6; 
+                        padding: 12px; 
+                        margin-bottom: 15px; 
+                        font-size: 12px;
+                        border-radius: 6px;
+                    }
+                    .summary-title { 
+                        font-weight: bold; 
+                        font-size: 15px;
+                        color: ${themeColor};
+                        margin-bottom: 10px; 
+                        border-bottom: 2px solid ${themeColor}; 
+                        padding-bottom: 5px; 
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-end;
+                    }
+                    .summary-grid { 
+                        display: grid; 
+                        grid-template-columns: repeat(3, 1fr); 
+                        gap: 8px; 
+                    }
+                    .cat-card {
+                        background-color: #ffffff;
+                        border: 1px solid #dee2e6;
+                        border-left: 4px solid ${themeColor};
+                        border-radius: 4px;
+                        padding: 8px;
+                    }
+                    .cat-card-title {
+                        font-weight: bold;
+                        color: #333;
+                        margin-bottom: 4px;
+                        font-size: 11px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+                    .cat-card-stats {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 12px;
+                    }
+                    .cat-card-count {
+                        color: #555;
+                    }
+                    .cat-card-amount {
+                        font-weight: bold;
+                        color: ${themeColor};
+                    }
+                    table { width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; word-wrap: break-word; }
+                    th { 
+                        background-color: ${themeColor} !important; 
+                        color: white !important; 
+                        border: 1px solid ${themeColor}; 
+                        padding: 6px 2px; 
+                        text-align: center;
+                        -webkit-print-color-adjust: exact;
+                    }
+                    td { border: 1px solid #D3D3D3; padding: 4px 3px; vertical-align: top; }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .badge {
+                        display: inline-block;
+                        padding: 2px 6px;
+                        border-radius: 10px;
+                        font-size: 9px;
+                        color: white;
+                        -webkit-print-color-adjust: exact;
+                    }
+                    .footer-row { background-color: #f8f9fa; font-weight: bold; }
+                    .category-row { background-color: #e9ecef; font-weight: bold; font-size: 10px; }
+                    @page {
+                        @bottom-right {
+                            content: "หน้า " counter(page) " / " counter(pages);
+                        }
+                    }
+                    @media print {
+                        body { padding: 0; }
+                        .summary-box { border: 1px solid #000; }
+                    }
+                </style>
+            `;
+
+            let summaryHtml = `
+                <div class="summary-box">
+                    <div class="summary-title">
+                        <div>
+                            <span>จำนวนรายการ: <span style="font-size: 18px; color: ${themeColor}; font-weight: bold;">${dataToExport.length.toLocaleString()}</span> รายการ</span>
+                            <span style="margin-left: 20px;">วงเงินรวม: <span style="font-size: 18px; color: ${themeColor}; font-weight: bold;">${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> บาท</span>
+                        </div>
+                        <span style="font-size: 10px; font-weight: normal; color: #666;">* ข้อมูลที่แสดงตามตัวกรองปัจจุบัน</span>
+                    </div>
+                    <div class="summary-grid">
+            `;
+
+            Object.keys(categorySummary).sort().forEach(catCode => {
+                const cat = categorySummary[catCode];
+                summaryHtml += `
+                        <div class="cat-card">
+                            <div class="cat-card-title">${catCode} - ${cat.name}</div>
+                            <div class="cat-card-stats">
+                                <span class="cat-card-count">${cat.count.toLocaleString()} รายการ</span>
+                                <span class="cat-card-amount">${cat.amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                `;
+            });
+            summaryHtml += `</div></div>`;
+
+            let htmlContent = `
+                <html>
+                <head>
+                    <title>Export PDF - ${PLANS[currentPlan].name}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
+                    ${printStyle}
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>ระบบติดตามเอกสาร - ${PLANS[currentPlan].name}</h2>
+                        <span style="font-size: 10px;">วันที่พิมพ์: ${today}</span>
+                    </div>
+                    
+                    <div class="filter-info">
+                        <span><strong>เดือน:</strong> ${filterInfo.monthInfo}</span>
+                        <span><strong>สถานะ:</strong> ${filterInfo.statusInfo}</span>
+                        <span><strong>ฝ่าย:</strong> ${filterInfo.deptInfo}</span>
+                    </div>
+
+                    ${summaryHtml}
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 25px;">ลำดับ</th>
+                                <th style="width: 65px;">เลขหนังสือ</th>
+                                <th style="width: 55px;">วันที่ลงคุม</th>
+                                <th style="width: 45px;">จำนวนวัน</th>
+                                <th style="width: 95px;">ชื่อผู้เบิก</th>
+                                <th style="width: 40px;">ฝ่าย</th>
+                                <th style="width: 65px;">วงเงิน</th>
+                                <th style="width: 80px;">ขั้นตอน</th>
+                                <th style="width: 55px;">วันที่ได้รับ</th>
+                                <th style="width: 50px;">จบภารกิจ</th>
+                                <th style="width: auto;">หมายเหตุ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            // Group data by category for the table as well
+            const sortedCategories = Object.keys(categorySummary).sort();
+            sortedCategories.forEach(catCode => {
+                const catItems = dataToExport.filter(item => (item.category || 'อื่นๆ') === catCode);
+
+                htmlContent += `
+                    <tr class="category-row">
+                        <td colspan="11">${catCode} - ${CATEGORIES[catCode] || 'อื่นๆ'} (${catItems.length} รายการ)</td>
+                    </tr>
+                `;
+
+                catItems.forEach(item => {
+                    const key = `${currentPlan}-${item.id}`;
+                    const tracking = trackingStore[key] || { step: '', location: '', notes: '', lastModified: '' };
+                    const missionEndDate = parseMissionEndDate(item.originalNotes);
+                    let currentStep = tracking.step;
+                    const todayDate = new Date();
+                    todayDate.setHours(0, 0, 0, 0);
+
+                    if (missionEndDate && todayDate < missionEndDate) {
+                        currentStep = 'ยังไม่เสร็จสิ้นภารกิจ';
+                    } else if (currentStep === 'ยังไม่เสร็จสิ้นภารกิจ') {
+                        currentStep = '';
+                    }
+
+                    const daysElapsed = calculateDaysElapsed(item.controlDate);
+                    let missionEndedDaysDisplay = '-';
+                    if (missionEndDate && todayDate >= missionEndDate) {
+                        const diffTime = todayDate.getTime() - missionEndDate.getTime();
+                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        missionEndedDaysDisplay = `${diffDays} วัน`;
+                    }
+
+                    let badgeColor = '#6c757d';
+                    if (currentStep === 'กวบ.') badgeColor = '#ffc107; color: black';
+                    else if (currentStep === 'ฝบบ.') badgeColor = '#0d6efd';
+                    else if (currentStep === 'ส่งกลับกลุ่ม/ฝ่าย') badgeColor = '#198754';
+                    else if (currentStep === 'ยังไม่ได้รับเอกสารตัวจริง') badgeColor = '#0dcaf0; color: black';
+                    else if (currentStep === 'อยู่ระหว่างแก้ไข') badgeColor = '#ffc107; color: black';
+                    else if (currentStep === 'กำลังดำเนินการ' || currentStep === 'กำลังดำเนินการเบิก') badgeColor = '#0d6efd';
+                    else if (currentStep === 'ส่งเบิกแล้ว (การเงิน)' || currentStep === 'ส่งไปยังกลุ่ม/ฝ่าย') badgeColor = '#198754';
+                    else if (currentStep === 'ยังไม่เสร็จสิ้นภารกิจ') badgeColor = '#212529';
+                    else if (currentStep === 'ยกเลิก/ไม่เบิก') badgeColor = '#dc3545';
+
+                    let statusText = currentStep || '-';
+                    if (item.cutoffNum) {
+                        badgeColor = '#198754'; // Success green
+                        statusText = 'ตัดยอดไปแล้ว (' + item.cutoffNum + ')';
+                    }
+
+                    let notes = tracking.notes || '';
+                    if (item.status) notes = `<span style="color: red; font-weight: bold;">[${item.status}]</span> ${notes}`;
+                    if (item.originalNotes) notes += (notes ? '<br>' : '') + `<small style="color: #666; font-size: 9px;">${item.originalNotes}</small>`;
+
+                    htmlContent += `
+                        <tr>
+                            <td class="text-center">${item.id}</td>
+                            <td class="text-center">${item.bookNum}</td>
+                            <td class="text-center">${formatDateThai(item.controlDate)}</td>
+                            <td class="text-center"><strong>${daysElapsed !== null ? daysElapsed + ' วัน' : '-'}</strong></td>
+                            <td>${item.name}</td>
+                            <td class="text-center">${item.dept}</td>
+                            <td class="text-right">${item.amount || '-'}</td>
+                            <td class="text-center">
+                                <span class="badge" style="background-color: ${badgeColor}">${statusText}</span><br>
+                                <small style="font-size: 8px; color: #0d6efd;">(${formatDateThai(tracking.lastModified)})</small>
+                            </td>
+                            <td class="text-center">${formatDateThai(tracking.location)}</td>
+                            <td class="text-center"><strong>${missionEndedDaysDisplay}</strong></td>
+                            <td style="font-size: 9px;">${notes || '-'}</td>
+                        </tr>
+                    `;
+                });
+            });
+
+            htmlContent += `
+                        <tr class="footer-row">
+                            <td colspan="6" class="text-right">รวมทั้งสิ้น (${dataToExport.length.toLocaleString()} รายการ)</td>
+                            <td class="text-right">${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td colspan="4"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <${'script'}>
+                    window.onload = function() {
+                        setTimeout(() => {
+                            window.print();
+                            window.onafterprint = function() { window.close(); };
+                        }, 500);
+                    };
+                <${'/script'}>
+                <${'/body'}>
+                <${'/html'}>
+            `;
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.open();
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+        }
+
+        function renderTableOnlyCutoff() {
+            const onlyCutoff = document.getElementById('filterOnlyCutoff').checked;
+            if (onlyCutoff) {
+                document.getElementById('filterShowCutoff').checked = true;
+            }
+            renderTable();
+        }
+
+        function renderTableShowCutoff() {
+            const showCutoff = document.getElementById('filterShowCutoff').checked;
+            if (!showCutoff) {
+                document.getElementById('filterOnlyCutoff').checked = false;
+            }
+            renderTable();
+        }
+
+        function renderTable(filter = '') {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            let filteredData = getFilteredData(filter);
+            let overdueCount = 0;
+            let totalAmount = 0;
+            const categoryStats = {};
+
+            filteredData.forEach(item => {
+                const amount = parseFloat((item.amount || '0').replace(/,/g, '')) || 0;
+                totalAmount += amount;
+
+                const catCode = (item.category || '').trim();
+                if (catCode) {
+                    if (!categoryStats[catCode]) {
+                        categoryStats[catCode] = { count: 0, amount: 0, name: CATEGORIES[catCode] || 'อื่นๆ' };
+                    }
+                    categoryStats[catCode].count++;
+                    categoryStats[catCode].amount += amount;
+                }
+
+                const key = `${currentPlan}-${item.id}`;
+                const tracking = trackingStore[key] || {
+                    step: '',
+                    location: '',
+                    notes: '',
+                    lastModified: ''
+                };
+
+                // Check for Mission Progress Auto-Step
+                const missionEndDate = parseMissionEndDate(item.originalNotes);
+                let currentStep = tracking.step;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (missionEndDate && today < missionEndDate) {
+                    currentStep = 'ยังไม่เสร็จสิ้นภารกิจ';
+                } else if (currentStep === 'ยังไม่เสร็จสิ้นภารกิจ') {
+                    // หากจบภารกิจแล้ว หรือไม่พบวัน แต่ค่าเดิมใน DB ยังเป็น "ยังไม่เสร็จสิ้นภารกิจ" ให้เคลียร์เป็นว่าง
+                    currentStep = '';
+                }
+
+                // Track items older than 30 days since last modification
+                const daysSinceModified = calculateDaysElapsed(tracking.lastModified);
+                if (daysSinceModified !== null && daysSinceModified >= 30) {
+                    overdueCount++;
+                }
+
+                const row = document.createElement('tr');
+                row.setAttribute('data-key', key);
+
+                // Color coding for steps
+                let badgeClass = 'bg-secondary';
+                if (item.cutoffNum) {
+                    badgeClass = 'bg-success';
+                    row.classList.add('table-success'); // prioritize cut-off
+                }
+                else if (currentStep === 'กวบ.') badgeClass = 'bg-warning text-dark';
+                else if (currentStep === 'ฝบบ.') badgeClass = 'bg-primary';
+                else if (currentStep === 'ส่งกลับกลุ่ม/ฝ่าย') {
+                    badgeClass = 'bg-purple';
+                    row.classList.add('table-purple');
+                }
+                else if (currentStep === 'ยังไม่ได้รับเอกสารตัวจริง') {
+                    badgeClass = 'bg-info text-dark';
+                    row.classList.add('table-info');
+                }
+                else if (currentStep === 'อยู่ระหว่างแก้ไข') {
+                    badgeClass = 'bg-warning text-dark';
+                    row.classList.add('table-warning');
+                }
+                else if (currentStep === 'กำลังดำเนินการ' || currentStep === 'กำลังดำเนินการเบิก') {
+                    badgeClass = 'bg-primary';
+                }
+                else if (currentStep === 'ส่งเบิกแล้ว (การเงิน)') {
+                    badgeClass = 'bg-success';
+                    row.classList.add('table-teal');
+                }
+                else if (currentStep === 'ส่งไปยังกลุ่ม/ฝ่าย') {
+                    badgeClass = 'bg-purple';
+                    row.classList.add('table-purple');
+                }
+                else if (currentStep === 'ยังไม่เสร็จสิ้นภารกิจ') {
+                    badgeClass = 'bg-dark text-white';
+                    row.classList.add('table-secondary');
+                }
+                else if (currentStep === 'ยกเลิก/ไม่เบิก') {
+                    badgeClass = 'bg-danger';
+                    row.classList.add('table-danger');
+                }
+
+                const daysElapsed = calculateDaysElapsed(item.controlDate);
+                let daysDisplay = '-';
+
+                if (daysElapsed !== null) {
+                    let icon = '';
+                    if (daysElapsed >= 60) {
+                        icon = '🚨';
+                    } else if (daysElapsed >= 30) {
+                        icon = '⚠️';
+                    }
+                    daysDisplay = `${daysElapsed} วัน ${icon}`;
+                }
+
+                const daysElapsedFromReceipt = calculateDaysElapsed(tracking.location);
+                let daysFromReceiptDisplay = '-';
+
+                if (daysElapsedFromReceipt !== null) {
+                    let icon = '';
+                    if (daysElapsedFromReceipt >= 60) {
+                        icon = '🚨';
+                    } else if (daysElapsedFromReceipt >= 30) {
+                        icon = '⚠️';
+                    }
+                    daysFromReceiptDisplay = `${daysElapsedFromReceipt} วัน ${icon}`;
+                }
+
+                // Calculate days from Last Modified
+                let lastModifiedDisplay = formatDateThai(tracking.lastModified);
+                if (daysSinceModified !== null && daysSinceModified >= 30) {
+                    lastModifiedDisplay = `<span class="text-danger fw-bold">${lastModifiedDisplay} 🕒</span>`;
+                }
+
+                // Check for Mission End Icon and Days Ended
+                let missionStatusIcon = '';
+                let missionEndedDaysDisplay = '-';
+
+                if (missionEndDate) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (today >= missionEndDate) {
+                        const diffTime = today.getTime() - missionEndDate.getTime();
+                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        const titleText = diffDays === 0 ? 'จบภารกิจวันนี้' : `จบภารกิจแล้ว ${diffDays} วัน`;
+
+                        // แยกสี icon
+                        let icon = '✅';
+                        if (diffDays > 15) {
+                            icon = '✴️';
+                        }
+
+                        missionStatusIcon = `<span title="${titleText}" style="cursor: help; margin-left: 5px;">${icon}</span>`;
+                        missionEndedDaysDisplay = `<strong class="text-danger">${diffDays} วัน</strong>`;
+                    }
+                }
+
+                const canEdit = !item.cutoffNum;
+                if (!canEdit) row.style.cursor = 'default';
+                const clickAction = canEdit ? `onclick="openEdit('${key}')"` : '';
+
+                row.innerHTML = `
+                    <td><input type="checkbox" class="form-check-input row-checkbox" data-key="${key}"></td>
+                    <td ${clickAction}>${item.id}</td>
+                    <td ${clickAction}>${item.bookNum}</td>
+                    <td class="col-date" ${clickAction}>${formatDateThai(item.controlDate)}</td>
+                    <td style="text-align: center;" ${clickAction}>
+                        <strong>${daysDisplay}</strong>
+                    </td>
+                    <td ${clickAction}>${item.name}</td>
+                    <td ${clickAction}>${item.dept}</td>
+                    <td ${clickAction} style="text-align: right;">${item.amount || '-'}</td>
+                    <td ${clickAction}>
+                        <span class="badge ${badgeClass}">${item.cutoffNum ? 'ตัดยอดไปแล้ว (' + item.cutoffNum + ')' : (currentStep || '-')}</span>
+                        <div style="font-size: 0.75rem; color: #0d6efd; font-weight: bold; margin-top: 2px;">
+                            (${lastModifiedDisplay})
+                        </div>
+                    </td>
+                    <td class="col-date" ${clickAction}>
+                        ${formatDateThai(tracking.location)}
+                    </td>
+                    <td style="text-align: center;" ${clickAction}>
+                        ${missionEndedDaysDisplay} ${missionStatusIcon}
+                    </td>
+                    <td class="col-notes" ${clickAction}>
+                        <small class="text-danger d-block">${item.status ? '[' + item.status + '] ' : ''}${tracking.notes || ''}</small>
+                        ${item.originalNotes || '-'}
+                    </td>
+                `;
+
+                const checkboxCell = row.querySelector('td:first-child');
+                checkboxCell.onclick = function (e) { e.stopPropagation(); };
+
+                tbody.appendChild(row);
+            });
+
+            updateNotification(overdueCount);
+            setupSelectAllCheckbox();
+
+            // Update summary
+            const summaryCountEl = document.getElementById('summaryCount');
+            const summaryAmountEl = document.getElementById('summaryAmount');
+            if (summaryCountEl) summaryCountEl.innerText = filteredData.length.toLocaleString();
+            if (summaryAmountEl) summaryAmountEl.innerText = totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+
+            // Render category breakdown
+            const breakdownEl = document.getElementById('categoryBreakdown');
+            if (breakdownEl) {
+                const sortedCats = Object.keys(categoryStats).sort();
+                if (sortedCats.length === 0) {
+                    breakdownEl.innerHTML = '<div class="col-12 text-muted">ไม่มีข้อมูลหมวด</div>';
+                } else {
+                    breakdownEl.innerHTML = sortedCats.map(code => {
+                        const stats = categoryStats[code];
+                        return `
+                            <div class="col">
+                                <div class="d-flex flex-column h-100 p-2 bg-white rounded border-start border-4 border-primary shadow-sm">
+                                    <div class="fw-bold text-truncate" title="${code} - ${stats.name}">${code} - ${stats.name}</div>
+                                    <div class="d-flex justify-content-between mt-1">
+                                        <span class="text-primary">${stats.count} รายการ</span>
+                                        <span class="fw-bold text-success">${stats.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+        }
+
+        function updateNotification(count) {
+            const notificationArea = document.getElementById('notificationArea');
+            if (count > 0) {
+                notificationArea.innerHTML = `
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <strong>⚠️ แจ้งเตือน:</strong> มีรายการที่ไม่ได้รับการแก้ไขเกิน 30 วัน ทั้งหมด <strong>${count}</strong> รายการ
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+            } else {
+                notificationArea.innerHTML = '';
+            }
+        }
+
+        function setupSelectAllCheckbox() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+
+            selectAllCheckbox.addEventListener('change', function () {
+                rowCheckboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+            });
+
+            rowCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
+                    const someChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
+
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                });
+            });
+        }
+
+        let datePicker;
+        let startPicker, endPicker;
+
+        function initCategoryFilters() {
+            const container = document.getElementById('categoryFilters');
+            const checkedGroups = Array.from(document.querySelectorAll('.group-filter:checked')).map(cb => cb.value);
+
+            container.innerHTML = '';
+            Object.keys(CATEGORIES).sort().forEach(code => {
+                const groupPrefix = code.charAt(0).toUpperCase();
+                if (checkedGroups.length === 0 || checkedGroups.includes(groupPrefix)) {
+                    const div = document.createElement('div');
+                    div.className = 'form-check form-check-inline';
+                    div.innerHTML = `
+                    <input class="form-check-input category-filter" type="checkbox" value="${code}" id="filterCat${code}" checked>
+                    <label class="form-check-label" for="filterCat${code}">${code} - ${CATEGORIES[code]}</label>
+                `;
+                    container.appendChild(div);
+                }
+            });
+
+            // Add event listeners to new checkboxes
+            document.querySelectorAll('.category-filter').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    renderTable(document.getElementById('searchInput').value);
+                });
+            });
+
+            renderTable(document.getElementById('searchInput').value);
+        }
+
+        function toggleAllCategories(checked) {
+            document.querySelectorAll('.category-filter').forEach(checkbox => {
+                checkbox.checked = checked;
+            });
+            renderTable(document.getElementById('searchInput').value);
+        }
+
+        function initDashFilters() {
+            const catFilter = document.getElementById('dashCategoryFilter');
+            if (!catFilter || catFilter.tagName !== 'SELECT') return;
+
+            // Clear existing except first
+            while (catFilter.options.length > 1) {
+                catFilter.remove(1);
+            }
+
+            Object.keys(CATEGORIES).sort().forEach(code => {
+                const option = document.createElement('option');
+                option.value = code;
+                option.text = `${code} - ${CATEGORIES[code]}`;
+                catFilter.add(option);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCategoryFilters();
+            initDashFilters();
+
+            document.querySelectorAll('.group-filter').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    initCategoryFilters();
+                });
+            });
+
+            datePicker = flatpickr("#editLocation", {
+                locale: "th",
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "j M y",
+            });
+
+            const commonDateConfig = {
+                locale: "th",
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "j M y",
+                onChange: function () {
+                    renderTable(document.getElementById('searchInput').value);
+                }
+            };
+
+            startPicker = flatpickr("#startDate", commonDateConfig);
+            endPicker = flatpickr("#endDate", commonDateConfig);
+
+            document.querySelectorAll('.month-filter-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const month = this.value;
+                    if (this.checked) {
+                        if (!selectedMonths.includes(month)) {
+                            selectedMonths.push(month);
+                        }
+                    } else {
+                        selectedMonths = selectedMonths.filter(m => m !== month);
+                    }
+                    renderTable(document.getElementById('searchInput').value);
+                });
+            });
+
+            document.querySelectorAll('.duration-control-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const duration = this.value;
+                    if (this.checked) {
+                        if (!selectedDurationsFromControl.includes(duration)) {
+                            selectedDurationsFromControl.push(duration);
+                        }
+                    } else {
+                        selectedDurationsFromControl = selectedDurationsFromControl.filter(d => d !== duration);
+                    }
+                    renderTable(document.getElementById('searchInput').value);
+                });
+            });
+
+            document.querySelectorAll('.duration-receipt-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const duration = this.value;
+                    if (this.checked) {
+                        if (!selectedDurationsFromReceipt.includes(duration)) {
+                            selectedDurationsFromReceipt.push(duration);
+                        }
+                    } else {
+                        selectedDurationsFromReceipt = selectedDurationsFromReceipt.filter(d => d !== duration);
+                    }
+                    renderTable(document.getElementById('searchInput').value);
+                });
+            });
+
+            document.querySelectorAll('.duration-modified-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const duration = this.value;
+                    if (this.checked) {
+                        if (!selectedDurationsFromModified.includes(duration)) {
+                            selectedDurationsFromModified.push(duration);
+                        }
+                    } else {
+                        selectedDurationsFromModified = selectedDurationsFromModified.filter(d => d !== duration);
+                    }
+                    renderTable(document.getElementById('searchInput').value);
+                });
+            });
+
+            document.querySelectorAll('.step-filter').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    renderTable(document.getElementById('searchInput').value);
+                });
+            });
+
+            document.querySelectorAll('.mission-filter').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    renderTable(document.getElementById('searchInput').value);
+                });
+            });
+
+            document.getElementById('searchInput').addEventListener('input', function () {
+                renderTable(this.value);
+            });
+        });
+
+        function clearDateFilter() {
+            startPicker.clear();
+            endPicker.clear();
+            renderTable(document.getElementById('searchInput').value);
+        }
+
+        function clearMonthFilter() {
+            selectedMonths = [];
+            document.querySelectorAll('.month-filter-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            renderTable(document.getElementById('searchInput').value);
+        }
+
+        function clearDurationControlFilter() {
+            selectedDurationsFromControl = [];
+            document.querySelectorAll('.duration-control-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            renderTable(document.getElementById('searchInput').value);
+        }
+
+        function clearDurationReceiptFilter() {
+            selectedDurationsFromReceipt = [];
+            document.querySelectorAll('.duration-receipt-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            renderTable(document.getElementById('searchInput').value);
+        }
+
+        function clearDurationModifiedFilter() {
+            selectedDurationsFromModified = [];
+            document.querySelectorAll('.duration-modified-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            renderTable(document.getElementById('searchInput').value);
+        }
+
+        function clearEditDate() {
+            if (datePicker) {
+                datePicker.clear();
+            }
+        }
+
+        function openEdit(key) {
+            const item = documentData.find(d => `${currentPlan}-${d.id}` === key);
+            if (!item) return;
+
+            if (item.cutoffNum) {
+                alert('รายการนี้ถูกตัดยอดไปแล้ว ไม่สามารถแก้ไขได้');
+                return;
+            }
+
+            const tracking = trackingStore[key] || {
+                step: '',
+                location: '',
+                notes: ''
+            };
+
+            // Calculate current step to use as fallback if tracking.step is empty
+            const missionEndDate = parseMissionEndDate(item.originalNotes);
+            let currentStep = tracking.step;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (missionEndDate && today < missionEndDate) {
+                currentStep = 'ยังไม่เสร็จสิ้นภารกิจ';
+            } else if (currentStep === 'ยังไม่เสร็จสิ้นภารกิจ') {
+                currentStep = '';
+            }
+
+            document.getElementById('editId').value = key;
+            document.getElementById('editStep').value = tracking.step || currentStep || '';
+            
+            // Populating data for editing
+            const baseNotes = (item.status ? '[' + item.status + '] ' : '') + (item.originalNotes || '');
+            document.getElementById('originalNotes').innerText = baseNotes || '-';
+            document.getElementById('editNotes').value = tracking.notes || '';
+
+            if (datePicker) {
+                datePicker.setDate(tracking.location);
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('editModal'));
+            modal.show();
+        }
+
+        // !!! นำ URL ที่ได้จากการ Deploy Google Apps Script มาวางที่นี่ !!!
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzr-ec0UK90Q_8r0m7RJuzWORKf6J0323ucfTDsnV8oUTIfS5MM1xRQ6EQb9uSsaKEPgw/exec';
+
+        async function saveChanges() {
+            const saveBtn = document.getElementById('saveBtn');
+            const originalText = saveBtn.innerHTML;
+
+            const key = document.getElementById('editId').value;
+            const step = document.getElementById('editStep').value;
+            const location = document.getElementById('editLocation').value;
+            const notes = document.getElementById('editNotes').value;
+            const lastModified = new Date().toISOString().split('T')[0];
+            const [planId, id] = key.split('-');
+
+            // แสดงสถานะกำลังบันทึก
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> กำลังบันทึก...';
+
+            try {
+                // 1. อัปเดตข้อมูลในหน่วยความจำชั่วคราว
+                trackingStore[key] = { step, location, notes, lastModified };
+
+                // 2. ส่งข้อมูลไปบันทึกใน Google Sheet (Database)
+                if (APPS_SCRIPT_URL) {
+                    const response = await fetch(APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify({ planId, id, step, location, notes, lastModified })
+                    });
+                    console.log('บันทึกลง Database สำเร็จ');
+                }
+
+                // ปิด Modal เมื่อบันทึกเสร็จ
+                const modalElement = document.getElementById('editModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                modal.hide();
+
+                renderTable(document.getElementById('searchInput').value);
+            } catch (error) {
+                console.error('ไม่สามารถบันทึกลง Database ได้:', error);
+                alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            } finally {
+                // คืนค่าปุ่ม
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalText;
+            }
+        }
+
+        // Initial load
+        switchPlan(currentPlan);
+    </script>
+
+</body>
+
+</html>
