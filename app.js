@@ -1211,27 +1211,65 @@ function renderSpendingPlan() {
     let catCode = e.catCode ? e.catCode.toString().trim() : 'ไม่ระบุหมวด';
     if (!summary[catCode]) {
       // Match 'A1' with 'A1 - ค่าอาหารทำการนอกเวลา'
-      const foundKey = Object.keys(summary).find(k =>
+      let foundKey = Object.keys(summary).find(k =>
         k.trim() === catCode ||
         k.split(' -')[0].trim() === catCode ||
         k.split('-')[0].trim() === catCode
       );
+
+      let bestName = catCode;
+      let bestGroup = 'รายการอื่นๆ (ไม่อยู่ในแผน)';
+      let foundInPlanCats = false;
+
+      if (!foundKey && typeof PLAN_CATEGORIES !== 'undefined') {
+        // Check target plan first, then fallback to 'default'
+        const configsToCheck = [];
+        if (PLAN_CATEGORIES[currentPlan]) configsToCheck.push(PLAN_CATEGORIES[currentPlan]);
+        if (PLAN_CATEGORIES['default']) configsToCheck.push(PLAN_CATEGORIES['default']);
+        
+        for (const planConfig of configsToCheck) {
+          if (foundInPlanCats) break;
+          for (const grp of planConfig) {
+            if (grp.options) {
+              const opt = grp.options.find(o => o.code === catCode || o.text === catCode || o.text.startsWith(catCode + ' '));
+              if (opt) {
+                // Strip the "B1 - " prefix if it exists
+                bestName = opt.text.includes('-') ? opt.text.substring(opt.text.indexOf('-') + 1).trim() : opt.text;
+                let cleanLabel = grp.label.replace(/^[0-9.]+\s*/, '').replace(/^หมวด\s*/, '').trim();
+                bestGroup = cleanLabel || 'รายการอื่นๆ (ไม่อยู่ในแผน)';
+                foundInPlanCats = true;
+                break;
+              }
+            }
+          }
+        }
+
+        // Try to match again using the resolved bestName
+        if (foundInPlanCats) {
+          foundKey = Object.keys(summary).find(k => 
+             k.trim() === bestName || 
+             (k.includes('-') && k.substring(k.indexOf('-') + 1).trim() === bestName) ||
+             (k.includes('-') && k.substring(0, k.indexOf('-')).trim() === catCode)
+          );
+        }
+      }
+
       if (foundKey) {
         catCode = foundKey;
       } else {
-        // Create it dynamically under 'อื่นๆ'
+        // Create it dynamically
         summary[catCode] = {
           code: catCode,
-          name: catCode,
-          group: 'รายการอื่นๆ (ไม่อยู่ในแผน)',
+          name: bestName,
+          group: bestGroup,
           order: 999,
           alloc: 0,
           afterAdj: 0,
           resNonPO: 0, resPO: 0, deductPO: 0, deductTotal: 0, gfTotal: 0, entries: []
         };
-        if (!groupMap['รายการอื่นๆ (ไม่อยู่ในแผน)']) groupMap['รายการอื่นๆ (ไม่อยู่ในแผน)'] = [];
-        if (!groupMap['รายการอื่นๆ (ไม่อยู่ในแผน)'].includes(catCode)) {
-          groupMap['รายการอื่นๆ (ไม่อยู่ในแผน)'].push(catCode);
+        if (!groupMap[bestGroup]) groupMap[bestGroup] = [];
+        if (!groupMap[bestGroup].includes(catCode)) {
+          groupMap[bestGroup].push(catCode);
         }
       }
     }
