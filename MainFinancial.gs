@@ -1,4 +1,4 @@
-﻿const SPREADSHEET_ID = '1WCXrR9h7sMig6uebRcxJHL6A1EGVBPj6zeObixkuxDU';
+const SPREADSHEET_ID = '1WCXrR9h7sMig6uebRcxJHL6A1EGVBPj6zeObixkuxDU';
 const SHEET_GID = 1567872987; 
 const STAMP_SETTINGS_GID = 1243086150;
 
@@ -36,6 +36,8 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify(res || { error: 'Action not found' })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) { return ContentService.createTextOutput(JSON.stringify({ error: err.message })).setMimeType(ContentService.MimeType.JSON); }
 }
+
+const DATA_START_ROW = 3; // สเปรดชีตมี Header 2 แถว (แถว 1-2) ข้อมูลเริ่มที่แถว 3
 
 function budget_getTargetSheet() { 
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -101,9 +103,9 @@ function budget_getInitialData() {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
   const lastCol = Math.max(19, sheet.getLastColumn());
-  if (lastRow < 5) return { entries: [], todayThai: budget_formatThaiDate(new Date()) };
+  if (lastRow < DATA_START_ROW) return { entries: [], todayThai: budget_formatThaiDate(new Date()) };
   
-  const data = sheet.getRange(5, 1, lastRow - 4, lastCol).getValues();
+  const data = sheet.getRange(DATA_START_ROW, 1, lastRow - (DATA_START_ROW - 1), lastCol).getValues();
   let parentMap = {};
   
   const entries = data.filter(r => r[0]).map(row => {
@@ -176,7 +178,7 @@ function budget_getInitialData() {
 function budget_submitReserve(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const ids = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
+  const ids = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
   let max = 0; ids.forEach(r => { let v = parseInt(r[0]); if(v > max) max = v; });
   const nextId = max + 1;
   const nr = lastRow + 1;
@@ -201,7 +203,7 @@ function budget_submitReserve(data) {
 function budget_submitDeduct(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const idData = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
+  const idData = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
   
   if (data.mode === 'PO') {
     const pIdStr = data.id.toString();
@@ -237,7 +239,7 @@ function budget_submitDeduct(data) {
     budget_applyFormulas(sheet, nr);
     return { success: true, id: nId };
   } else {
-    let target = -1; for (let i = idData.length - 1; i >= 0; i--) if(idData[i][0].toString().trim() === data.id.toString().trim()) { target = i + 5; break; }
+    let target = -1; for (let i = idData.length - 1; i >= 0; i--) if(idData[i][0].toString().trim() === data.id.toString().trim()) { target = i + DATA_START_ROW; break; }
     if (target === -1) throw new Error("ID not found");
     
     const currentLiq = sheet.getRange(target, 6).getValue();
@@ -259,7 +261,7 @@ function budget_submitDeduct(data) {
 function budget_submitOffset(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const idData = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
+  const idData = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
   const pIdStr = data.id.toString();
   const { pIdx, insAt, nextSub } = budget_findParentAndInsertIndex(idData, pIdStr);
   
@@ -298,8 +300,8 @@ function budget_submitOffset(data) {
 function budget_submitUpdate(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const ids = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
-  let target = -1; for (let i = ids.length - 1; i >= 0; i--) if(ids[i][0].toString().trim() === data.id.toString().trim()) { target = i + 5; break; }
+  const ids = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
+  let target = -1; for (let i = ids.length - 1; i >= 0; i--) if(ids[i][0].toString().trim() === data.id.toString().trim()) { target = i + DATA_START_ROW; break; }
   if (target === -1) throw new Error("ID not found");
   
   if (data.plan !== undefined) sheet.getRange(target, 2).setValue(data.plan || "");
@@ -323,8 +325,8 @@ function budget_submitUpdate(data) {
 function budget_submitReserveNo(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const ids = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
-  let target = -1; for (let i = ids.length - 1; i >= 0; i--) if(ids[i][0].toString().trim() === data.id.toString().trim()) { target = i + 5; break; }
+  const ids = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
+  let target = -1; for (let i = ids.length - 1; i >= 0; i--) if(ids[i][0].toString().trim() === data.id.toString().trim()) { target = i + DATA_START_ROW; break; }
   if (target === -1) throw new Error("ID not found");
   
   sheet.getRange(target, 18).setValue(data.reserveNumber || "");
@@ -336,10 +338,10 @@ function budget_submitReserveNo(data) {
 function budget_submitDocTracking(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const ids = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
+  const ids = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
   let target = -1; 
   for (let i = ids.length - 1; i >= 0; i--) {
-    if(ids[i][0].toString().trim() === data.id.toString().trim()) { target = i + 5; break; }
+    if(ids[i][0].toString().trim() === data.id.toString().trim()) { target = i + DATA_START_ROW; break; }
   }
   if (target === -1) throw new Error("ID not found");
   
@@ -351,7 +353,7 @@ function budget_submitDocTracking(data) {
 function budget_submitReserveAdd(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const idData = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
+  const idData = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
   
   const pIdStr = data.parentId.toString();
   const { pIdx, insAt, nextSub } = budget_findParentAndInsertIndex(idData, pIdStr);
@@ -384,7 +386,7 @@ function budget_submitReserveAdd(data) {
 function budget_submitDeductAdd(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const idData = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
+  const idData = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
   
   const pIdStr = data.id.toString();
   const { pIdx, insAt, nextSub } = budget_findParentAndInsertIndex(idData, pIdStr);
@@ -422,11 +424,11 @@ function budget_submitDeductAdd(data) {
 function budget_submitCancel(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const idData = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
+  const idData = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
 
   let target = -1;
   for (let i = idData.length - 1; i >= 0; i--) {
-    if (idData[i][0].toString().trim() === data.id.toString().trim()) { target = i + 5; break; }
+    if (idData[i][0].toString().trim() === data.id.toString().trim()) { target = i + DATA_START_ROW; break; }
   }
   if (target === -1) throw new Error("ID not found");
 
@@ -443,7 +445,7 @@ function budget_submitCancel(data) {
 function budget_submitReserveAndDeduct(data) {
   const sheet = budget_getTargetSheet();
   const lastRow = sheet.getLastRow();
-  const ids = sheet.getRange(5, 1, Math.max(1, lastRow - 4), 1).getValues();
+  const ids = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
   let max = 0; ids.forEach(r => { let v = parseInt(r[0]); if(v > max) max = v; });
   const nextId = max + 1;
   const nr = lastRow + 1;

@@ -1,4 +1,4 @@
-﻿
+
 let API = typeof CONFIG !== 'undefined' ? CONFIG.API_URL : 'https://script.google.com/macros/s/AKfycbydvJ5ClEUqKX2xr-jSCR-U5m6mESvqDw6yB8UZdCyQqki1PgmikMRx98wd7jvCIng/exec';
 let currentPlan = null;
 let cache = null;
@@ -222,7 +222,13 @@ async function call(action, data = null) {
 
 async function init() {
   const d = await call('getInitialData');
+  console.log('[init] raw API response:', d);
   if (d) {
+    console.log('[init] entries count:', d.entries ? d.entries.length : 'NO entries field');
+    console.log('[init] plans count:', d.plans ? d.plans.length : 'NO plans field');
+    if (d.entries && d.entries.length > 0) {
+      console.log('[init] first entry sample:', d.entries[0]);
+    }
     if (d.entries) {
       d.entries.forEach(e => {
         if (e.dept) e.dept = e.dept.toString().replace(/\.+$/, '').trim();
@@ -233,11 +239,22 @@ async function init() {
     updateCategoryDropdowns();
 
     document.querySelectorAll('.submit-btn').forEach(b => b.disabled = false);
-    // Re-apply theme now that cache.plans is available
     if (currentPlan) updateTheme(currentPlan);
-    const defaultNav = document.getElementById('nav-doc-tracking');
-    setView('doc-tracking', defaultNav); renderDocTracking(); updatePendingBadge();
+
+    // ตรวจสอบ view ปัจจุบัน — ถ้าอยู่ที่ pending-plan อยู่แล้ว ให้ render แทนที่จะ redirect
+    const activeView = document.querySelector('.app-view.active');
+    const activeViewId = activeView ? activeView.id.replace('view-', '') : '';
+
+    if (activeViewId === 'pending-plan') {
+      renderPendingPlanView();
+    } else {
+      const defaultNav = document.getElementById('nav-doc-tracking');
+      setView('doc-tracking', defaultNav); renderDocTracking();
+    }
+    updatePendingBadge();
     updateAdminUI();
+  } else {
+    console.log('[init] API returned null/falsy — possible network error');
   }
 }
 
@@ -719,6 +736,8 @@ function setView(v, el) {
     const titleEl = document.getElementById('viewTitle');
     if (titleEl) titleEl.textContent = 'รายการรออนุมัติแผนงาน';
     if (backBtn) backBtn.style.display = 'flex';
+    // Auto-render pending plan table
+    if (typeof renderPendingPlanView === 'function') renderPendingPlanView();
   } else if (v === 'home' || v === 'dashboard') {
     if (planBar) planBar.style.display = 'none';
 
@@ -2146,18 +2165,32 @@ function doAction(act) {
 document.getElementById('reserveForm').onsubmit = async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
-  // plan from the select; if empty means unplanned
-  data.plan = '';
+  data.plan = ''; // รายการใหม่ไม่มีแผน — ไปรออนุมัติ
   const r = await call('submitReserve', data);
   if (r?.success) {
-    if (!data.plan) {
-      showModal('สำเร็จ', 'บันทึกเรียบร้อย ID: ' + r.id + '\n\n📌 รายการส่งเข้า "รออนุมัติแผน" เรียบร้อยแล้ว');
-    } else {
-      showModal('สำเร็จ', 'บันทึกเรียบร้อย ID: ' + r.id);
+    e.target.reset();
+    // โหลดข้อมูลใหม่ แล้วไปแสดง pending-plan
+    const pendingNav = document.getElementById('nav-pending-plan');
+    // ตั้งหน้าที่ pending-plan ก่อนเรียก init
+    if (pendingNav) {
+      document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+      const pv = document.getElementById('view-pending-plan');
+      if (pv) pv.classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      pendingNav.classList.add('active');
     }
-    init(); e.target.reset();
+    const newId = r.id;
+    await init(); // โหลดข้อมูลใหม่ (จะ render pending-plan อัตโนมัติเนื่องจาก active view)
+    Swal.fire({
+      icon: 'success',
+      title: 'บันทึกสำเร็จ!',
+      html: `รายการ <b>#${newId}</b> ถูกส่งเข้า “รออนุมัติแผน” เรียบร้อยแล้ว`,
+      timer: 2500,
+      showConfirmButton: false
+    });
   }
 };
+
 document.getElementById('reserveAddForm').onsubmit = async (e) => { e.preventDefault(); const r = await call('submitReserveAdd', Object.fromEntries(new FormData(e.target))); if (r?.success) { showModal('สำเร็จ', 'แทรกรายการกันเงินเพิ่มเรียบร้อย ID: ' + r.id); init(); e.target.reset(); document.getElementById('reserveAddFields').style.display = 'none'; document.getElementById('prvRA').style.display = 'none'; } };
 document.getElementById('deductForm').onsubmit = async (e) => { e.preventDefault(); const r = await call('submitDeduct', Object.fromEntries(new FormData(e.target))); if (r?.success) { showModal('สำเร็จ', 'ตัดยอดเรียบร้อย' + (r.id ? ' ID: ' + r.id : '')); setView('table'); init(); e.target.reset(); } };
 document.getElementById('deductAddForm').onsubmit = async (e) => { e.preventDefault(); const r = await call('submitDeductAdd', Object.fromEntries(new FormData(e.target))); if (r?.success) { showModal('สำเร็จ', 'แทรกรายการตัดยอดเพิ่มเรียบร้อย ID: ' + r.id); init(); e.target.reset(); } };
@@ -4403,6 +4436,226 @@ function triggerPrintWithStamp(data) {
     frame.contentWindow.print();
   }, 400);
 }
+
+// ============================================================
+// รายการรออนุมัติแผนงาน (Pending Plan View)
+// ============================================================
+
+function updatePendingBadge() {
+  if (!cache || !cache.entries) return;
+  // หลักการ: column B (plan) ว่าง = รออนุมัติแผน
+  const pendingItems = cache.entries.filter(e =>
+    e.id && String(e.plan || '').trim() === ''
+  );
+  const badge = document.getElementById('sidebarPendingBadge');
+  if (badge) {
+    if (pendingItems.length > 0) {
+      badge.textContent = pendingItems.length;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+function renderPendingPlanView() {
+  const tbody = document.getElementById('pendingPlanTableBody');
+  const statCount = document.getElementById('pendingStatCount');
+  const statAmount = document.getElementById('pendingStatAmount');
+  const deptFilter = document.getElementById('pendingDeptFilter');
+  const searchInput = document.getElementById('pendingSearchInput');
+
+  if (!tbody) return;
+
+  if (!cache || !cache.entries) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:40px;"><div class="loader-inner" style="margin:20px auto;"></div>กำลังโหลดข้อมูล...</td></tr>';
+    return;
+  }
+
+  // หลักการ: column B (plan) ว่าง = รออนุมัติแผน แสดงทั้งหมด
+  let items = cache.entries.filter(e =>
+    e.id && String(e.plan || '').trim() === ''
+  );
+
+  // === DEBUG: แสดงใน console และ UI ===
+  console.log('[PendingPlan] cache.entries total:', cache.entries.length);
+  console.log('[PendingPlan] items with empty plan:', items.length);
+  if (cache.entries.length > 0) {
+    const sample = cache.entries.slice(0, 5);
+    sample.forEach(e => console.log(`  id=${e.id} plan=[${JSON.stringify(e.plan)}] type=${typeof e.plan}`));
+  }
+
+  // แสดง diagnostic ใน UI ถ้าไม่มีรายการ
+  if (items.length === 0 && cache.entries.length > 0) {
+    const planSample = cache.entries.slice(0, 10).map(e =>
+      `#${e.id}: plan=[${JSON.stringify(e.plan)}]`
+    ).join('<br>');
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:left; padding:20px; font-size:12px; background:#fef9c3; border:1px solid #fde68a;">
+      <b>🔍 Debug:</b> พบ entries ทั้งหมด ${cache.entries.length} รายการ แต่ไม่มีที่ plan ว่าง<br>
+      <b>ตัวอย่าง 10 รายการแรก:</b><br>${planSample}<br><br>
+      <i>กรุณาดู Console (F12) เพื่อข้อมูลเพิ่มเติม</i>
+    </td></tr>`;
+    if (statCount) statCount.textContent = '0 รายการ';
+    if (statAmount) statAmount.textContent = '0.00 บาท';
+    return;
+  }
+
+  // Populate dept filter — ดึงจาก items ทั้งหมดที่ col B ว่าง
+  if (deptFilter) {
+    const depts = [...new Set(
+      cache.entries
+        .filter(e => e.id && String(e.plan || '').trim() === '')
+        .map(e => e.dept).filter(Boolean)
+    )].sort();
+    const prevDept = deptFilter.value;
+    deptFilter.innerHTML = '<option value="">ทุกฝ่าย</option>' +
+      depts.map(d => `<option value="${d}">${d}</option>`).join('');
+    if (prevDept) deptFilter.value = prevDept;
+  }
+
+  // Apply dept filter
+  const selectedDept = deptFilter ? deptFilter.value : '';
+  if (selectedDept) {
+    items = items.filter(e => e.dept === selectedDept);
+  }
+
+  // Apply search filter
+  const q = (searchInput ? searchInput.value : '').trim().toLowerCase();
+  if (q) {
+    items = items.filter(e =>
+      (e.id && e.id.toString().toLowerCase().includes(q)) ||
+      (e.refNo && e.refNo.toString().toLowerCase().includes(q)) ||
+      (e.name && e.name.toString().toLowerCase().includes(q)) ||
+      (e.dept && e.dept.toString().toLowerCase().includes(q)) ||
+      (e.desc && e.desc.toString().toLowerCase().includes(q)) ||
+      (e.catCode && e.catCode.toString().toLowerCase().includes(q))
+    );
+  }
+
+  // Sort: newest first (by ID descending as proxy)
+  items = items.slice().sort((a, b) => {
+    const da = new Date(a.date || 0).getTime();
+    const db = new Date(b.date || 0).getTime();
+    return db - da || (Number(b.id) - Number(a.id));
+  });
+
+  // Update stats
+  const totalAmt = items.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  if (statCount) statCount.textContent = items.length + ' รายการ';
+  if (statAmount) statAmount.textContent = totalAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' บาท';
+
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:48px; color:#6b7280;">' +
+      '<span class="material-symbols-outlined" style="font-size:48px; display:block; margin-bottom:12px; opacity:0.3;">hourglass_empty</span>' +
+      'ไม่มีรายการรออนุมัติแผนงาน</td></tr>';
+    return;
+  }
+
+  const planOptions = (cache.plans || []).map(p =>
+    `<option value="${p.shortName}">${p.shortName}${p.fullName ? ' — ' + p.fullName : ''}</option>`
+  ).join('');
+
+  tbody.innerHTML = items.map(e => {
+    const amt = Number(e.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const isPO = (e.type && e.type.toString().toUpperCase() === 'PO') || (e.colF && e.colF.toString().toUpperCase() === 'PO');
+    const rowStyle = isPO ? 'background:#fffbeb;' : '';
+
+    return `<tr style="cursor:pointer; transition:background 0.15s; ${rowStyle}"
+        onmouseover="this.style.background='#f0f9ff'"
+        onmouseout="this.style.background='${isPO ? '#fffbeb' : ''}'">
+      <td style="text-align:center; width:40px;">
+        <input type="checkbox" class="row-checkbox" data-amt="${e.amount || 0}"
+          onchange="updateSelectedTotal()">
+      </td>
+      <td style="text-align:center; font-weight:800; color:var(--primary); font-size:13px;">#${e.id}</td>
+      <td style="text-align:center; font-size:12px; white-space:nowrap;">${formatThaiDate(e.date)}</td>
+      <td style="text-align:center;">
+        <span style="background:var(--primary-light); color:var(--primary-dark); padding:2px 6px; border-radius:6px; font-size:10px; font-weight:700;">
+          ${e.catCode || '-'}
+        </span>
+      </td>
+      <td style="font-size:12px; text-align:center;">${e.refNo || '-'}</td>
+      <td style="font-size:12px; font-weight:600;">${e.name || '-'}</td>
+      <td style="text-align:center;">
+        <span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:700;">${e.dept || '-'}</span>
+      </td>
+      <td style="font-size:12px; color:#374151; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(e.desc || '').replace(/"/g, '&quot;')}">
+        ${isPO ? '<span style="background:#d97706; color:white; font-size:9px; font-weight:800; padding:1px 5px; border-radius:4px; margin-right:4px;">PO</span>' : ''}
+        ${e.desc || '-'}
+      </td>
+      <td style="text-align:right; font-weight:800; font-size:13px; color:#0f172a; white-space:nowrap;">${amt} ฿</td>
+      <td style="text-align:center; width:135px;">
+        <select onchange="quickAssignPlan(this, '${e.id}')"
+          style="width:100%; padding:4px 6px; border:1px solid #d97706; border-radius:6px; font-size:11px; background:#fffbeb; color:#92400e; font-weight:700; cursor:pointer;"
+          title="เลือกแผนงานเพื่ออนุมัติ">
+          <option value="">⏳ รออนุมัติ</option>
+          ${planOptions}
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Update sidebar badge
+  updatePendingBadge();
+}
+
+async function quickAssignPlan(selectEl, id) {
+  const plan = selectEl.value;
+  if (!plan) return;
+
+  const e = cache && cache.entries ? cache.entries.find(x => x.id == id) : null;
+  if (!e) return;
+
+  const catOptions = getCategoryOptionsHTML(e.catCode);
+
+  const result = await Swal.fire({
+    title: `อนุมัติจัดเข้าแผน "${plan}"`,
+    html: `
+      <div style="font-size:12px; background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:16px; border:1px solid #e2e8f0; text-align:left; line-height:1.7;">
+        <div><b>รายการ ID:</b> #${id}</div>
+        <div><b>เลขหนังสือ:</b> ${e.refNo || '-'}</div>
+        <div><b>ชื่อผู้เบิก:</b> ${e.name || '-'}</div>
+        <div><b>จำนวนเงิน:</b> ${Number(e.amount || 0).toLocaleString()} บาท</div>
+      </div>
+      <div style="text-align:left;">
+        <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px; color:#1e293b;">หมวดงบประมาณ (ระบุ/แก้ไข):</label>
+        <select id="swal-cat-quick" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; font-family:inherit; outline:none;">
+          ${catOptions}
+        </select>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: '✅ อนุมัติ',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#d97706',
+    preConfirm: () => {
+      return { catCode: document.getElementById('swal-cat-quick').value };
+    }
+  });
+
+  if (result.isConfirmed) {
+    const { catCode } = result.value;
+    const r = await call('submitUpdate', { id: id, plan: plan, catCode: catCode });
+    if (r && r.success) {
+      if (cache && cache.entries) {
+        const item = cache.entries.find(x => x.id == id);
+        if (item) { item.plan = plan; item.catCode = catCode; }
+      }
+      Swal.fire({
+        toast: true, position: 'top-end', icon: 'success',
+        title: `จัดรายการ #${id} เข้าแผน "${plan}" เรียบร้อย`,
+        showConfirmButton: false, timer: 2000
+      });
+      renderPendingPlanView();
+      updatePendingBadge();
+    }
+  } else {
+    // Reset select back to blank if cancelled
+    selectEl.value = '';
+  }
+}
+
+// ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof updateAdminUI === 'function') updateAdminUI();
