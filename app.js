@@ -1421,9 +1421,10 @@ function renderSpendingPlan() {
       let catCheckbox = r.entries.length > 0 ? `<input type="checkbox" id="cb-${r.code}" style="cursor:pointer; transform:scale(1.2);" class="hide-on-print" ${includedCount > 0 ? 'checked' : ''} onclick="toggleSpendingCategory('${r.code}', event)">${indeterminateScript}` : '';
 
       let isExpanded = expandedSpendingCategories.has('sub-' + r.code);
+      let hideInUI = (r.entries.length === 0 && r.afterAdj === 0);
 
       itemsHtml += `
-            <tr class="table-row-clickable ${isExcludedCat ? 'excluded-row' : ''} ${isHiddenInPrint ? 'hide-on-print' : ''}" onclick="toggleSubTable('sub-${r.code}', 'all', event)" title="คลิกเพื่อดูรายละเอียดทั้งหมด" style="cursor:pointer; ${isExcludedCat ? 'opacity:0.5; background-color:#f8fafc;' : ''}">
+            <tr class="table-row-clickable ${isExcludedCat ? 'excluded-row' : ''} ${isHiddenInPrint ? 'hide-on-print' : ''}" onclick="toggleSubTable('sub-${r.code}', 'all', event)" title="คลิกเพื่อดูรายละเอียดทั้งหมด" style="cursor:pointer; ${isExcludedCat ? 'opacity:0.5; background-color:#f8fafc;' : ''} ${hideInUI ? 'display:none;' : ''}">
               <td style="font-weight:700; color:var(--primary-dark); padding:8px 12px; white-space:normal; word-break:break-word; line-height:1.4; ${isExcludedCat ? 'text-decoration:line-through;' : ''}">
                  <div style="display:flex; align-items:flex-start; gap:8px;">
                     ${r.name}
