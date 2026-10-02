@@ -708,7 +708,7 @@ function logoutAdmin() {
 function setView(v, el) {
   if (!el) return;
 
-  const adminOnlyViews = ['table', 'pending-plan', 'spending-plan', 'reserve-deduct', 'settings', 'gf', 'stamp-online'];
+  const adminOnlyViews = ['table', 'spending-plan', 'reserve-deduct', 'settings', 'gf', 'stamp-online'];
   if (!isAdmin && adminOnlyViews.includes(v)) {
     return;
   }
@@ -1723,9 +1723,17 @@ function renderTable(q = "") {
       (!e.plan || e.plan.toString().trim() === "") &&
       !isCancelled(e)
     );
-    tbody.innerHTML = noPlanFiltered.length > 0
-      ? noPlanFiltered.map(rowTpl).join('')
-      : '<tr><td colspan="11" style="text-align:center; padding:40px; color:var(--text-muted);">ไม่มีรายการที่รอเลือกแผน</td></tr>';
+    const totalPages = Math.ceil(noPlanFiltered.length / ITEMS_PER_PAGE);
+    if (tableCurrentPage > totalPages) tableCurrentPage = totalPages;
+    if (tableCurrentPage < 1) tableCurrentPage = 1;
+    const startIndex = (tableCurrentPage - 1) * ITEMS_PER_PAGE;
+    const pagedData = noPlanFiltered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    tbody.innerHTML = pagedData.length > 0
+      ? pagedData.map(rowTpl).join('')
+      : '<tr><td colspan="11" style="text-align:center; padding:40px; color:var(--text-muted);">???????????</td></tr>';
+
+    renderPaginationControls('tablePagination', totalPages, tableCurrentPage, (p) => { tableCurrentPage = p; renderTable(q); });
     return;
   }
 
@@ -1879,7 +1887,12 @@ function renderTable(q = "") {
   };
 
   if (doGroup) {
-    tbody.innerHTML = groups.length > 0 ? groups.map(g => {
+    const totalPages = Math.ceil(groups.length / ITEMS_PER_PAGE);
+    if (tableCurrentPage > totalPages) tableCurrentPage = totalPages;
+    if (tableCurrentPage < 1) tableCurrentPage = 1;
+    const startIndex = (tableCurrentPage - 1) * ITEMS_PER_PAGE;
+    const pagedGroups = groups.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    tbody.innerHTML = pagedGroups.length > 0 ? pagedGroups.map(g => {
       const groupTotal = g.entries.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
       let matchedEntries = [];
@@ -5193,3 +5206,24 @@ async function quickAssignPlan(selectEl, id) {
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof updateAdminUI === 'function') updateAdminUI();
 });
+
+let tableCurrentPage = 1;
+let pendingCurrentPage = 1;
+const ITEMS_PER_PAGE = 50;
+function renderPaginationControls(containerId, totalPages, currentPage, onPageChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+  let html = '';
+  html += '<button class="page-btn" ' + (currentPage === 1 ? 'disabled' : '') + ' onclick="window.__page_'+containerId+'(1)"><<</button>';
+  html += '<button class="page-btn" ' + (currentPage === 1 ? 'disabled' : '') + ' onclick="window.__page_'+containerId+'(' + (currentPage - 1) + ')"><</button>';
+  html += '<span class="page-info">???? ' + currentPage + ' ??? ' + totalPages + '</span>';
+  html += '<button class="page-btn" ' + (currentPage === totalPages ? 'disabled' : '') + ' onclick="window.__page_'+containerId+'(' + (currentPage + 1) + ')">></button>';
+  html += '<button class="page-btn" ' + (currentPage === totalPages ? 'disabled' : '') + ' onclick="window.__page_'+containerId+'(' + totalPages + ')">>></button>';
+  
+  container.innerHTML = html;
+  window['__page_' + containerId] = onPageChange;
+}

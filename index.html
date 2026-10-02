@@ -67,7 +67,7 @@
   <!-- Right-click context menu -->
   <div id="rowContextMenu">
     <div class="ctx-header" id="ctxMenuId">รายการ #-</div>
-    <button class="ctx-item" id="ctx-assign-plan" onclick="doAction('assign-plan')">
+    <button class="ctx-item admin-only" id="ctx-assign-plan" onclick="doAction('assign-plan')">
       <span class="material-symbols-outlined" style="color:#2563eb;">account_tree</span>
       <span>อนุมัติจัดเข้าแผน</span>
     </button>
@@ -122,7 +122,7 @@
         <span class="material-symbols-outlined">grid_on</span>
         <span>ตารางรายการทั้งหมด</span>
       </div>
-      <div class="nav-item admin-only" id="nav-pending-plan"
+      <div class="nav-item" id="nav-pending-plan"
         onclick="setView('pending-plan', this); renderPendingPlanView()">
         <span class="material-symbols-outlined" style="color:#f59e0b;">hourglass_top</span>
         <span>รายการรออนุมัติแผน</span>
@@ -138,10 +138,12 @@
         <span>กันเงิน+ตัดยอด (ด่วน)</span>
       </div>
 
-      <div class="nav-category" style="margin-top:20px;">ข้อมูลสาธารณะ</div>
-      <div class="nav-item" id="nav-doc-tracking" onclick="setView('doc-tracking', this); renderDocTracking()">
-        <span class="material-symbols-outlined" style="color:#0ea5e9;">description</span>
-        <span>ติดตามเอกสาร (รอเบิก)</span>
+
+
+      <div class="nav-category" style="margin-top:20px;">ระบบอื่นๆ</div>
+      <div class="nav-item" onclick="window.open('https://royalrainmaking.github.io/Documenttracking/', '_blank')">
+        <span class="material-symbols-outlined" style="color:#0ea5e9;">open_in_new</span>
+        <span>ระบบติดตามเอกสาร</span>
       </div>
 
       <div class="nav-category admin-only" style="margin-top:20px;">สรุปข้อมูล (Dashboard)</div>
@@ -372,6 +374,7 @@
               </tbody>
             </table>
           </div>
+          <div id="pendingPlanPagination" class="pagination-container"></div>
         </div>
       </div>
 
@@ -455,6 +458,7 @@
             </tbody>
           </table>
         </div>
+        <div id="tablePagination" class="pagination-container"></div>
       </div> <!-- End view-table -->
 
       <!-- RESERVE & DEDUCT -->
@@ -969,131 +973,7 @@
 
     </div>
 
-    <!-- DOC TRACKING -->
-    <div id="view-doc-tracking" class="app-view">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;"
-        class="hide-on-print">
-        <h2 style="margin:0; font-size:20px; color:var(--primary-dark);">ระบบติดตามเอกสาร (รอเบิก)</h2>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-secondary" onclick="window.print()" style="display:flex; align-items:center; gap:6px;">
-            <span class="material-symbols-outlined" style="font-size:18px;">print</span>
-            พิมพ์รายงาน
-          </button>
-          <button class="btn btn-secondary" onclick="renderDocTracking()"
-            style="display:flex; align-items:center; gap:6px;">
-            <span class="material-symbols-outlined" style="font-size:18px;">refresh</span>
-            รีเฟรช
-          </button>
-        </div>
-      </div>
 
-      <div class="filter-bar hide-on-print"
-        style="margin-bottom:16px; align-items:center; background:#f8fafc; padding:12px; border-radius:8px; display:flex; flex-wrap:wrap; gap:12px;">
-        <div style="flex:1; min-width:200px;">
-          <input type="text" id="docSearchInput" placeholder="ค้นหาด้วยเลขหนังสือ, ชื่อผู้เบิก..."
-            style="width:100%; height:32px; border-radius:6px; border:1px solid var(--border); padding:0 8px;"
-            oninput="renderDocTracking()">
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;" id="docFilterDeptContainer">
-          <!-- Dept filter buttons injected here -->
-        </div>
-        <div>
-          <button class="btn btn-secondary"
-            style="height:32px; padding:0 12px; display:flex; align-items:center; gap:4px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:white; font-weight:600;"
-            onclick="const el = document.getElementById('advancedFiltersContainer'); el.style.display = el.style.display === 'none' ? 'block' : 'none'">
-            <span class="material-symbols-outlined" style="font-size:16px;">tune</span> ตัวกรองขั้นสูง
-          </button>
-        </div>
-      </div>
-
-      <div id="advancedFiltersContainer" class="hide-on-print"
-        style="display:none; background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border); margin-bottom:16px;">
-        <div style="display:flex; flex-wrap:wrap; gap:24px; align-items:flex-end; margin-bottom:16px;">
-          <!-- Step Filter -->
-          <div style="flex:1; width:100%;" id="stepDropdownContainer">
-            <label
-              style="font-size:12px; font-weight:700; color:var(--text-main); display:block; margin-bottom:6px;">กรองตามขั้นตอนปัจจุบัน</label>
-            <div id="stepDropdown" style="display:flex; flex-wrap:wrap; gap:8px;">
-              <label
-                style="display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; cursor:pointer; border-radius:6px; border:1px solid var(--border); background:white;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"><input
-                  type="checkbox" value="WAITING" onchange="renderDocTracking()"> ว่าง (รอการกรอก)</label>
-              <label
-                style="display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; cursor:pointer; border-radius:6px; border:1px solid var(--border); background:white;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"><input
-                  type="checkbox" value="ยังไม่ได้รับเอกสารตัวจริง" onchange="renderDocTracking()">
-                ยังไม่ได้รับเอกสารตัวจริง</label>
-              <label
-                style="display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; cursor:pointer; border-radius:6px; border:1px solid var(--border); background:white;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"><input
-                  type="checkbox" value="อยู่ระหว่างแก้ไข" onchange="renderDocTracking()"> อยู่ระหว่างแก้ไข</label>
-              <label
-                style="display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; cursor:pointer; border-radius:6px; border:1px solid var(--border); background:white;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"><input
-                  type="checkbox" value="กำลังดำเนินการ" onchange="renderDocTracking()"> กำลังดำเนินการ</label>
-              <label
-                style="display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; cursor:pointer; border-radius:6px; border:1px solid var(--border); background:white;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"><input
-                  type="checkbox" value="ส่งเบิกแล้ว (การเงิน)" onchange="renderDocTracking()"> ส่งเบิกแล้ว
-                (การเงิน)</label>
-              <label
-                style="display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; cursor:pointer; border-radius:6px; border:1px solid var(--border); background:white;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"><input
-                  type="checkbox" value="ส่งไปยังกลุ่ม/ฝ่าย" onchange="renderDocTracking()"> ส่งไปยังกลุ่ม/ฝ่าย</label>
-              <label
-                style="display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; cursor:pointer; border-radius:6px; border:1px solid var(--border); background:white;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"><input
-                  type="checkbox" value="ยังไม่จบภารกิจ" onchange="renderDocTracking()"> ยังไม่จบภารกิจ</label>
-              <label
-                style="display:flex; align-items:center; gap:6px; font-size:12px; padding:6px 10px; cursor:pointer; border-radius:6px; border:1px solid var(--border); background:white;"
-                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'"><input
-                  type="checkbox" value="ยกเลิก/ไม่เบิก" onchange="renderDocTracking()"> ยกเลิก/ไม่เบิก</label>
-            </div>
-          </div>
-
-          <!-- Days Filter -->
-          <div style="flex:0 0 auto;">
-            <label
-              style="font-size:12px; font-weight:700; color:var(--text-main); display:block; margin-bottom:6px;">เวลาผ่านไป</label>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span style="font-size:12px; font-weight:600; color:var(--text-muted);">มากกว่า</span>
-              <input type="number" id="docFilterDays" placeholder="0"
-                style="width:60px; height:32px; border-radius:6px; border:1px solid var(--border); padding:0 8px; font-size:12px; text-align:center;"
-                oninput="renderDocTracking()" min="0">
-              <span style="font-size:12px; font-weight:600; color:var(--text-muted);">วัน</span>
-            </div>
-          </div>
-
-          <!-- Finished Checkbox -->
-          <div style="flex:0 0 auto; height:32px; display:flex; align-items:center;">
-            <label
-              style="font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; background:white; padding:0 12px; height:100%; border:1px solid var(--border); border-radius:6px;">
-              <input type="checkbox" id="docFilterFinished" checked onchange="renderDocTracking()" style="margin:0;">
-              ซ่อนรายการที่ตัดยอดแล้ว
-            </label>
-          </div>
-        </div>
-
-        <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
-
-        <div style="font-size:12px; font-weight:700; color:var(--text-main); margin-bottom:12px;">กรองตามหมวดรายจ่าย
-        </div>
-        <div id="docFilterGroupContainer"
-          style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; width:100%;">
-          <!-- Filter buttons/cards injected here -->
-        </div>
-      </div>
-
-      <div id="docTotalSummary" style="margin-bottom:16px;">
-        <!-- Total amount injected here -->
-      </div>
-
-
-
-      <div id="docTrackingTablesContainer" style="display:block;">
-        <!-- Tables injected here -->
-      </div>
-    </div>
 
     <!-- SETTINGS VIEW -->
     <div id="view-settings" class="app-view" style="padding: 24px;">
