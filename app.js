@@ -708,7 +708,7 @@ function logoutAdmin() {
 function setView(v, el) {
   if (!el) return;
 
-  const adminOnlyViews = ['table', 'pending-plan', 'spending-plan', 'reserve-deduct', 'settings', 'gf'];
+  const adminOnlyViews = ['table', 'pending-plan', 'spending-plan', 'reserve-deduct', 'settings', 'gf', 'stamp-online'];
   if (!isAdmin && adminOnlyViews.includes(v)) {
     return;
   }
@@ -771,6 +771,11 @@ function setView(v, el) {
 
   if (v === 'summary') {
     renderSummaryReport();
+  }
+
+  if (v === 'stamp-online') {
+    if (planBar) planBar.style.display = 'none';
+    populateStampOnlinePlanSelect();
   }
 
   const titleSpan = el.querySelector('span:not(.material-symbols-outlined)');
@@ -1833,21 +1838,17 @@ function renderTable(q = "") {
   }
 
   const rowTpl = (e) => {
-    let bgStyle = "";
     const isCancelled = e.colF && e.colF.toString().includes("ยกเลิก");
-    if (!isCancelled) {
-      if (!e.reserveNumber || e.reserveNumber.toString().trim() === "") {
-        bgStyle = "background-color: #fee2e2;";
-      } else {
-        bgStyle = "background-color: #dcfce7;";
-      }
-    }
+    let bgStyle = isCancelled ? "background-color: #fef2f2; opacity: 0.8;" : "";
+    
+    const isStamped = e.stampStatus === '✅';
+    const stampIcon = isStamped ? '<span title="ปั๊มตรายางแล้ว" style="color:#7c3aed; font-size:16px; vertical-align:middle; margin-right:4px;" class="material-symbols-outlined">approval</span>' : '';
     return `
         <tr class="table-row-clickable" oncontextmenu="event.preventDefault(); selectFromTable('${e.id}', event)" style="cursor:context-menu; ${bgStyle}">
           <td style="text-align:center;" onclick="event.stopPropagation()" oncontextmenu="event.stopPropagation()">
-             <input type="checkbox" class="row-checkbox" data-amt="${e.amount || 0}" onchange="updateSelectedTotal()">
+             <input type="checkbox" class="row-checkbox" data-id="${e.id}" data-amt="${e.amount || 0}" onchange="updateSelectedTotal()">
           </td>
-          <td class="id-col" style="color:var(--primary); font-weight:700;">#${e.id}</td>
+          <td class="id-col" style="color:var(--primary); font-weight:700;">${stampIcon}#${e.id}</td>
           <td style="text-align:center; font-size:12px;">${formatThaiDate(e.date)}</td>
           <td style="text-align:center;"><span class="cat-badge" style="font-size:11px; padding:2px 8px; background:#eef2ff; color:#4338ca; border-radius:6px; font-weight:700;">${e.catCode || '-'}</span></td>
           <td style="font-size:12px;">${e.refNo || '-'}</td>
@@ -2036,38 +2037,79 @@ function doAction(act) {
   }
 
   if (act === 'assign-plan') {
-    const e = cache.entries.find(x => x.id == selectedId);
-    if (!e || !cache || !cache.plans) return;
+    let selectedIds = [];
+    const checked = document.querySelectorAll('.row-checkbox:checked');
+    if (checked.length > 0) {
+      checked.forEach(cb => selectedIds.push(String(cb.dataset.id)));
+      if (selectedId && !selectedIds.includes(String(selectedId))) {
+        selectedIds.push(String(selectedId));
+      }
+    } else if (selectedId) {
+      selectedIds = [String(selectedId)];
+    }
 
-    // Disallow editing plan directly for items that already have a plan
-    if (e.plan && e.plan.toString().trim() !== "") {
+    if (selectedIds.length === 0) return;
+    if (!cache || !cache.plans) return;
+
+    let alreadyHasPlan = false;
+    let items = [];
+    selectedIds.forEach(id => {
+      let e = cache.entries.find(x => x.id == id);
+      if (e) {
+        items.push(e);
+        if (e.plan && e.plan.toString().trim() !== "") {
+          alreadyHasPlan = true;
+        }
+      }
+    });
+
+    if (alreadyHasPlan) {
       Swal.fire({
         icon: 'warning',
         title: 'ไม่อนุญาตให้เปลี่ยนแผนโดยตรง',
-        text: 'รายการในตารางมีแผนงานอยู่แล้ว หากต้องการเปลี่ยนแผน กรุณากดย้ายกลับมารออนุมัติแผนก่อน',
+        text: 'มีบางรายการที่เลือกได้ถูกจัดเข้าแผนไปแล้ว หากต้องการเปลี่ยนแผน กรุณากดย้ายกลับมารออนุมัติแผนก่อน',
         confirmButtonText: 'เข้าใจแล้ว',
         confirmButtonColor: '#d97706'
       });
       return;
     }
 
-    const currentP = (e.plan || "").toString().trim();
+    const currentP = items.length === 1 ? (items[0].plan || "").toString().trim() : "";
     const unassignOpt = `<option value="" ${!currentP ? 'selected' : ''}>⏳ ย้ายกลับมารออนุมัติแผน (ยังไม่จัดเข้าแผน)</option>`;
     const planOptions = unassignOpt + cache.plans.map(p =>
       `<option value="${p.shortName}" ${p.shortName === currentP ? 'selected' : ''}>${p.shortName}${p.fullName ? ' — ' + p.fullName : ''}</option>`
     ).join('');
 
-    const catOptions = getCategoryOptionsHTML(e.catCode);
+    let catOptions = '';
+    let isSingle = items.length === 1;
+    if (isSingle) {
+      catOptions = getCategoryOptionsHTML(items[0].catCode);
+    } else {
+      catOptions = `<option value="">(ไม่เปลี่ยนแปลงหมวดเดิม)</option>` + getCategoryOptionsHTML("");
+    }
+
+    let summaryHtml = '';
+    if (isSingle) {
+       summaryHtml = `
+          <div><b>รายการ ID:</b> #${items[0].id}</div>
+          <div><b>เลขหนังสือ:</b> ${items[0].refNo || '-'}</div>
+          <div><b>ชื่อผู้เบิก:</b> ${items[0].name || '-'}</div>
+          <div><b>รายละเอียด:</b> ${items[0].desc || '-'}</div>
+          <div><b>จำนวนเงิน:</b> ${Number(items[0].amount || 0).toLocaleString()} บาท</div>
+       `;
+    } else {
+       let totalAmt = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+       summaryHtml = `
+          <div><b>จำนวนรายการที่เลือก:</b> ${items.length} รายการ</div>
+          <div><b>จำนวนเงินรวม:</b> ${totalAmt.toLocaleString()} บาท</div>
+       `;
+    }
 
     Swal.fire({
       title: 'อนุมัติจัดเข้าแผนงาน & หมวดงบประมาณ',
       html: `
         <div style="font-size:12px; background:#f8fafc; padding:12px; border-radius:8px; margin-bottom:16px; border:1px solid #e2e8f0; text-align:left; line-height:1.7;">
-          <div><b>รายการ ID:</b> #${selectedId}</div>
-          <div><b>เลขหนังสือ:</b> ${e.refNo || '-'}</div>
-          <div><b>ชื่อผู้เบิก:</b> ${e.name || '-'}</div>
-          <div><b>รายละเอียด:</b> ${e.desc || '-'}</div>
-          <div><b>จำนวนเงิน:</b> ${Number(e.amount || 0).toLocaleString()} บาท</div>
+          ${summaryHtml}
         </div>
         
         <div style="text-align:left; margin-bottom:12px;">
@@ -2096,24 +2138,50 @@ function doAction(act) {
     }).then(async (result) => {
       if (result.isConfirmed) {
         const { plan, catCode } = result.value;
-        const r = await call('submitUpdate', { id: selectedId, plan: plan, catCode: catCode });
-        if (r?.success) {
-          if (cache && cache.entries) {
-            const item = cache.entries.find(x => x.id == selectedId);
-            if (item) {
-              item.plan = plan;
-              item.catCode = catCode;
-            }
-          }
-          Swal.fire('สำเร็จ', plan ? `จัดรายการ #${selectedId} เข้าแผน "${plan}" เรียบร้อย` : `ย้ายรายการ #${selectedId} กลับมารออนุมัติแผนเรียบร้อย`, 'success');
-          await init();
-          if (plan) {
-            const planTabs = document.querySelectorAll('.plan-tab');
-            planTabs.forEach(t => { if (t.dataset.plan === plan) setPlan(t); });
-          } else {
-            setView('pending-plan', document.getElementById('nav-pending-plan'));
-            renderPendingPlanView();
-          }
+        let successCount = 0;
+        
+        Swal.fire({
+           title: 'กำลังบันทึก...',
+           allowOutsideClick: false,
+           didOpen: () => Swal.showLoading()
+        });
+
+        for (const id of selectedIds) {
+           let updateData = { id: id, plan: plan };
+           if (catCode !== "") updateData.catCode = catCode;
+           const r = await call('submitUpdate', updateData);
+           if (r?.success) {
+             successCount++;
+             if (cache && cache.entries) {
+               const item = cache.entries.find(x => x.id == id);
+               if (item) {
+                 item.plan = plan;
+                 if (catCode !== "") item.catCode = catCode;
+               }
+             }
+           }
+        }
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'สำเร็จ',
+          text: `จัดเข้าแผนเรียบร้อย ${successCount} รายการ`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+        
+        document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+        if (typeof updateSelectedTotal === 'function') updateSelectedTotal();
+
+        await init();
+        
+        if (plan && isSingle) {
+          const planTabs = document.querySelectorAll('.plan-tab');
+          planTabs.forEach(t => { if (t.dataset.plan === plan) setPlan(t); });
+        } else {
+          // Stay on table if multiple
+          setView('table', document.getElementById('nav-table'));
+          renderTable();
         }
       }
     });
@@ -2201,32 +2269,140 @@ function doAction(act) {
 
 }
 
+let reserveRowCount = 0;
+function addReserveRow() {
+  const container = document.getElementById('reserveRowsContainer');
+  if (!container) return;
+  const rowId = reserveRowCount++;
+  
+  const div = document.createElement('div');
+  div.className = 'reserve-row';
+  div.style.cssText = 'margin-bottom:12px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0;';
+  
+  div.innerHTML = `
+    <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:16px; align-items:end; margin-bottom:12px;">
+      <div class="field" style="margin-bottom:0;"><label>หมวดงบประมาณ</label>
+        <select name="col_${rowId}" class="catSelect" data-hidden="catCode_${rowId}" onchange="syncCode(this)" required>
+          <option value="">-- เลือกหมวด --</option>
+        </select>
+        <input type="hidden" name="catCode_${rowId}" id="catCode_${rowId}">
+      </div>
+      <div class="field" style="margin-bottom:0;"><label>จำนวนเงินเบิก (บาท)</label>
+        <input type="number" name="amount_${rowId}" step="0.01" required>
+      </div>
+      <button type="button" class="btn" style="background:#ef4444; color:white; padding:10px; border-radius:6px; cursor:pointer;" onclick="this.parentElement.parentElement.remove()" ${rowId === 0 ? 'disabled style="opacity:0.5; background:#94a3b8;"' : ''}>
+        <span class="material-symbols-outlined" style="font-size:18px;">delete</span>
+      </button>
+    </div>
+    <div class="field full" style="margin-bottom:0; position:relative;">
+      <label>รายละเอียดโครงการ</label>
+      <textarea name="desc_${rowId}" id="desc_${rowId}" rows="2" autocomplete="off"
+        oninput="showFloatingSuggestions(this, 'sugD_${rowId}', 'descs')"
+        onfocus="showFloatingSuggestions(this, 'sugD_${rowId}', 'descs')" onblur="hideFloatingSuggestions('sugD_${rowId}')"
+        placeholder="เริ่มพิมพ์เพื่อดูรายการแนะนำ..." required></textarea>
+      <div id="sugD_${rowId}" class="floating-suggestions"></div>
+    </div>
+  `;
+  container.appendChild(div);
+  
+  if (typeof updateCategoryDropdowns === 'function') {
+    updateCategoryDropdowns();
+  }
+}
+
+// Initialize the first row on load
+document.addEventListener("DOMContentLoaded", () => {
+  addReserveRow();
+});
+
 document.getElementById('reserveForm').onsubmit = async (e) => {
   e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
-  data.plan = ''; // รายการใหม่ไม่มีแผน — ไปรออนุมัติ
-  const r = await call('submitReserve', data);
-  if (r?.success) {
-    e.target.reset();
-    // โหลดข้อมูลใหม่ แล้วไปแสดง pending-plan
-    const pendingNav = document.getElementById('nav-pending-plan');
-    // ตั้งหน้าที่ pending-plan ก่อนเรียก init
-    if (pendingNav) {
-      document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
-      const pv = document.getElementById('view-pending-plan');
-      if (pv) pv.classList.add('active');
-      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-      pendingNav.classList.add('active');
+  
+  const btn = e.target.querySelector('button[type="submit"]');
+  const originalBtnText = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = 'กำลังบันทึก...';
+
+  try {
+    const rawData = Object.fromEntries(new FormData(e.target));
+    
+    const baseData = {
+      type: rawData.type,
+      refNo: rawData.refNo,
+      letterDate: rawData.letterDate,
+      dept: rawData.dept,
+      name: rawData.name,
+      remark: rawData.remark,
+      plan: '' // รายการใหม่ไม่มีแผน — ไปรออนุมัติ
+    };
+
+    const rowsToSubmit = [];
+    for (let key in rawData) {
+      if (key.startsWith('col_')) {
+        const id = key.split('_')[1];
+        if (rawData[`amount_${id}`] && parseFloat(rawData[`amount_${id}`]) > 0) {
+          rowsToSubmit.push({
+            ...baseData,
+            col: rawData[`col_${id}`],
+            catCode: rawData[`catCode_${id}`],
+            amount: rawData[`amount_${id}`],
+            desc: rawData[`desc_${id}`] || ''
+          });
+        }
+      }
     }
-    const newId = r.id;
-    await init(); // โหลดข้อมูลใหม่ (จะ render pending-plan อัตโนมัติเนื่องจาก active view)
-    Swal.fire({
-      icon: 'success',
-      title: 'บันทึกสำเร็จ!',
-      html: `รายการ <b>#${newId}</b> ถูกส่งเข้า “รออนุมัติแผน” เรียบร้อยแล้ว`,
-      timer: 2500,
-      showConfirmButton: false
-    });
+
+    if (rowsToSubmit.length === 0) {
+      Swal.fire('ข้อผิดพลาด', 'กรุณาระบุหมวดงบประมาณและจำนวนเงินอย่างน้อย 1 รายการ', 'error');
+      btn.disabled = false;
+      btn.innerText = originalBtnText;
+      return;
+    }
+
+    let successCount = 0;
+    let lastNewId = '';
+    
+    for (const rowData of rowsToSubmit) {
+      const r = await call('submitReserve', rowData);
+      if (r?.success) {
+        successCount++;
+        lastNewId = r.id;
+      }
+    }
+
+    if (successCount > 0) {
+      e.target.reset();
+      document.getElementById('reserveRowsContainer').innerHTML = '';
+      reserveRowCount = 0;
+      addReserveRow();
+      
+      const pendingNav = document.getElementById('nav-pending-plan');
+      if (pendingNav) {
+        document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+        const pv = document.getElementById('view-pending-plan');
+        if (pv) pv.classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        pendingNav.classList.add('active');
+      }
+      
+      await init();
+      
+      let titleMsg = successCount > 1 ? `บันทึกสำเร็จ ${successCount} รายการ!` : 'บันทึกสำเร็จ!';
+      Swal.fire({
+        icon: 'success',
+        title: titleMsg,
+        html: `รายการถูกส่งเข้า “รออนุมัติแผน” เรียบร้อยแล้ว`,
+        timer: 2500,
+        showConfirmButton: false
+      });
+    } else {
+      Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+    }
+  } catch (error) {
+    Swal.fire('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = originalBtnText;
   }
 };
 
@@ -2636,7 +2812,207 @@ function renderGFSummary() {
   tbody.innerHTML = html;
 }
 
+// --- Detailed Dashboard Charts logic ---
+let planStackedChart = null;
+let planDonutChart = null;
+let categoryBarChart = null;
+let monthlyTrendChart = null;
+
+function renderDashboardCharts() {
+  if (!cache || !cache.plans || !cache.entries) return;
+
+  let totalAllocated = 0;
+  let totalReserved = 0;
+  let totalDeducted = 0;
+
+  const planLabels = [];
+  const planColors = [];
+  
+  const planAllocatedData = [];
+  const planReservedData = [];
+  const planDeductedData = [];
+  const planRemainingData = [];
+
+  // 1. Calculate Plan Budgets
+  cache.plans.forEach(p => {
+    planLabels.push(p.shortName);
+    planColors.push(p.themeColor || '#3b82f6');
+    
+    let alloc = 0;
+    if (p.budgets) {
+      p.budgets.forEach(b => {
+        alloc += (b.allocated || 0) + (b.increase || 0) - (b.decrease || 0);
+      });
+    }
+    totalAllocated += alloc;
+    planAllocatedData.push(alloc);
+
+    // Entries for this plan
+    let pReserved = 0;
+    let pDeducted = 0;
+    cache.entries.forEach(e => {
+      if (e.plan === p.shortName && !(e.colF && e.colF.toString().includes('ยกเลิก'))) {
+        const deduct = parseSafeFloat(e.amountDeduct || 0);
+        const reserve = parseSafeFloat(e.amount || 0);
+        
+        if (deduct > 0) {
+          pDeducted += deduct;
+        } else if (reserve > 0) {
+          pReserved += reserve;
+        }
+      }
+    });
+    
+    planReservedData.push(pReserved);
+    planDeductedData.push(pDeducted);
+    planRemainingData.push(alloc - (pReserved + pDeducted));
+    
+    totalReserved += pReserved;
+    totalDeducted += pDeducted;
+  });
+
+  const totalRemaining = totalAllocated - (totalReserved + totalDeducted);
+
+  // Update KPI UI
+  const fmtKPI = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ฿';
+  if(document.getElementById('kpiTotalBudget')) document.getElementById('kpiTotalBudget').innerText = fmtKPI(totalAllocated);
+  if(document.getElementById('kpiTotalReserved')) document.getElementById('kpiTotalReserved').innerText = fmtKPI(totalReserved);
+  if(document.getElementById('kpiTotalDeducted')) document.getElementById('kpiTotalDeducted').innerText = fmtKPI(totalDeducted);
+  if(document.getElementById('kpiTotalRemaining')) document.getElementById('kpiTotalRemaining').innerText = fmtKPI(totalRemaining);
+
+  // Chart 1: Stacked Bar (Plan Status)
+  const ctxStacked = document.getElementById('planStackedChart');
+  if (ctxStacked) {
+    if (planStackedChart) planStackedChart.destroy();
+    planStackedChart = new Chart(ctxStacked, {
+      type: 'bar',
+      data: {
+        labels: planLabels,
+        datasets: [
+          { label: 'เบิกจ่ายแล้ว', data: planDeductedData, backgroundColor: '#10b981' },
+          { label: 'กันเงิน/สัญญา', data: planReservedData, backgroundColor: '#f59e0b' },
+          { label: 'งบประมาณคงเหลือ', data: planRemainingData, backgroundColor: '#e2e8f0' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { 
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true } 
+        },
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  }
+
+  // Chart 2: Donut (Plan Proportions)
+  const ctxDonut = document.getElementById('planDonutChart');
+  if (ctxDonut) {
+    if (planDonutChart) planDonutChart.destroy();
+    planDonutChart = new Chart(ctxDonut, {
+      type: 'doughnut',
+      data: {
+        labels: planLabels,
+        datasets: [{
+          data: planAllocatedData,
+          backgroundColor: planColors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        cutout: '65%'
+      }
+    });
+  }
+
+  // Chart 3: Category Top 5 (Horizontal Bar)
+  const catMap = {};
+  cache.entries.forEach(e => {
+    if (e.colF && e.colF.toString().includes('ยกเลิก')) return;
+    const used = parseSafeFloat(e.amountDeduct || e.amount || 0);
+    if (used > 0 && e.catCode) {
+      if (!catMap[e.catCode]) catMap[e.catCode] = 0;
+      catMap[e.catCode] += used;
+    }
+  });
+
+  const sortedCats = Object.keys(catMap).map(k => ({ name: k, val: catMap[k] })).sort((a,b) => b.val - a.val).slice(0, 5);
+  
+  const ctxCat = document.getElementById('categoryBarChart');
+  if (ctxCat) {
+    if (categoryBarChart) categoryBarChart.destroy();
+    categoryBarChart = new Chart(ctxCat, {
+      type: 'bar',
+      data: {
+        labels: sortedCats.map(c => c.name),
+        datasets: [{
+          label: 'ยอดเบิกจ่าย/กันเงิน',
+          data: sortedCats.map(c => c.val),
+          backgroundColor: '#8b5cf6',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+  }
+
+  // Chart 4: Monthly Trend (Line Cumulative)
+  const monthMap = {};
+  cache.entries.forEach(e => {
+    if (e.colF && e.colF.toString().includes('ยกเลิก')) return;
+    const deduct = parseSafeFloat(e.amountDeduct || 0);
+    if (deduct > 0 && e.date) {
+      const mMatch = e.date.toString().match(/^(\d{4}-\d{2})/);
+      if (mMatch) {
+        const m = mMatch[1];
+        if (!monthMap[m]) monthMap[m] = 0;
+        monthMap[m] += deduct;
+      }
+    }
+  });
+
+  const sortedMonths = Object.keys(monthMap).sort();
+  let cumulative = 0;
+  const trendData = sortedMonths.map(m => {
+    cumulative += monthMap[m];
+    return cumulative;
+  });
+
+  const ctxTrend = document.getElementById('monthlyTrendChart');
+  if (ctxTrend) {
+    if (monthlyTrendChart) monthlyTrendChart.destroy();
+    monthlyTrendChart = new Chart(ctxTrend, {
+      type: 'line',
+      data: {
+        labels: sortedMonths,
+        datasets: [{
+          label: 'เบิกจ่ายสะสม (บาท)',
+          data: trendData,
+          borderColor: '#f43f5e',
+          backgroundColor: 'rgba(244, 63, 94, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+}
+
 function renderSummaryReport() {
+  renderDashboardCharts();
   const tbody = document.getElementById('summaryTbody');
   if (!currentPlan || !cache.plans || !cache.entries) {
     tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;">กรุณาเลือกแผน หรือรอโหลดข้อมูล</td></tr>';
@@ -4216,27 +4592,103 @@ async function saveStampSettings(planKey, stampData) {
 }
 
 /* ═══ PRINT PLAN RUBBER STAMP LOGIC (ตรายางข้อความ) ═══ */
+function openStampOnlineFromSelected(fromSidebar = false, id = null) {
+  closeActionMenu();
+
+  let selectedIds = [];
+  const checked = document.querySelectorAll('.row-checkbox:checked');
+  if (checked.length > 0) {
+    checked.forEach(cb => selectedIds.push(String(cb.dataset.id)));
+    if (id && !selectedIds.includes(String(id))) {
+      selectedIds.push(String(id));
+    }
+  } else if (id) {
+    selectedIds = [String(id)];
+  }
+
+  if (selectedIds.length === 0) {
+    if (fromSidebar) {
+      setView('stamp-online', document.getElementById('nav-stamp-online'));
+      return;
+    }
+    Swal.fire('กรุณาเลือกรายการ', 'กรุณาติ๊กเลือกรายการในตารางอย่างน้อย 1 รายการก่อน', 'warning');
+    return;
+  }
+  
+  if (cache && cache.entries) {
+    const items = cache.entries.filter(x => selectedIds.includes(String(x.id)));
+    if (items.length > 0) {
+      let totalAmt = 0;
+      let tags = [];
+      items.forEach(item => {
+        let cat = item.catCode || item.category || item.code || "C1";
+        if (!cat.startsWith("(")) cat = `(${cat})`;
+        tags.push(`#${item.id} ${cat}`);
+        if (item.amount) totalAmt += parseSafeFloat(item.amount);
+      });
+
+      const mergedItem = { ...items[0] }; 
+      mergedItem.id = selectedIds.join(',');
+      mergedItem.combinedTags = tags.join(" ");
+      mergedItem.amount = totalAmt;
+      
+      setView('stamp-online', document.getElementById('nav-stamp-online'));
+      
+      if (typeof stampOnlineState !== 'undefined') {
+        stampOnlineState.selectedItem = mergedItem;
+        const searchInput = document.getElementById('stampItemSearch');
+        if (searchInput) searchInput.value = "รวม " + checked.length + " รายการ";
+        const results = document.getElementById('stampItemResults');
+        if (results) results.style.display = 'none';
+        if (typeof updateStampOnlinePreview === 'function') updateStampOnlinePreview();
+      }
+    }
+  }
+}
+
 function openPrintPlanModal(id = null) {
   closeActionMenu();
 
+  let selectedIds = [];
+  const checked = document.querySelectorAll('.row-checkbox:checked');
+  if (checked.length > 0) {
+    checked.forEach(cb => selectedIds.push(String(cb.dataset.id)));
+    // If user right-clicked a row not in selection, add it to the group
+    if (id && !selectedIds.includes(String(id))) {
+      selectedIds.push(String(id));
+    }
+  } else if (id) {
+    selectedIds = [String(id)];
+  }
+
   let targetPlan = currentPlan;
-  let defaultItemTag = "#804 (C1)";
+  let defaultItemTag = "#...... (C1)";
   let defaultAmountNum = "........................................";
   let defaultAmountBaht = "";
 
-  if (id && cache && cache.entries) {
-    const item = cache.entries.find(x => x.id == id);
-    if (item) {
-      if (item.plan) targetPlan = item.plan;
-      let cat = item.catCode || item.category || item.code || "C1";
-      if (!cat.startsWith("(")) cat = `(${cat})`;
-      defaultItemTag = `#${item.id} ${cat}`;
+  if (selectedIds.length > 0 && cache && cache.entries) {
+    const items = cache.entries.filter(x => selectedIds.includes(String(x.id)));
+    
+    if (items.length > 0) {
+      if (items[0].plan) targetPlan = items[0].plan;
+      
+      let totalAmt = 0;
+      let tags = [];
+      
+      items.forEach(item => {
+        let cat = item.catCode || item.category || item.code || "C1";
+        if (!cat.startsWith("(")) cat = `(${cat})`;
+        tags.push(`#${item.id} ${cat}`);
+        
+        if (item.amount) totalAmt += parseSafeFloat(item.amount);
+      });
 
-      if (item.amount) {
-        const amt = parseFloat(item.amount);
-        const formattedAmt = amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      defaultItemTag = tags.join(" ");
+
+      if (totalAmt > 0) {
+        const formattedAmt = totalAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         defaultAmountNum = toThaiDigits(formattedAmt);
-        defaultAmountBaht = ThaiBahtText(amt);
+        defaultAmountBaht = ThaiBahtText(totalAmt);
       }
     }
   }
@@ -4311,12 +4763,13 @@ function openPrintPlanModal(id = null) {
     width: '540px',
     preConfirm: () => {
       return {
-        itemTag: defaultItemTag,
+        ids: selectedIds, // Pass the array of selected IDs
+        itemTag: document.getElementById('prevItemTag') ? document.getElementById('prevItemTag').textContent : defaultItemTag,
         year: toThaiDigits(document.getElementById('inpYear').value) || "๗๐",
-        plan: defaultPlan,
-        output: defaultOutput,
-        act: defaultAct,
-        subAct: defaultSubAct,
+        plan: document.getElementById('prevPlan').textContent || defaultPlan,
+        output: document.getElementById('prevOutput').textContent || defaultOutput,
+        act: document.getElementById('prevAct').textContent || defaultAct,
+        subAct: document.getElementById('prevSubAct').textContent || defaultSubAct,
         expenseCat: defaultExpenseCat,
         amtNum: document.getElementById('prevAmtNum').textContent || "........................................",
         amtBaht: document.getElementById('prevAmtBaht').textContent || ""
@@ -4350,6 +4803,47 @@ function updateStampAmt(val) {
 }
 
 function triggerPrintWithStamp(data) {
+  let idsToUpdate = [];
+  if (data.ids && Array.isArray(data.ids)) {
+    data.ids.forEach(sid => {
+      idsToUpdate.push(String(sid));
+    });
+  } else if (data.id) {
+    idsToUpdate.push(String(data.id));
+  }
+  
+  // Predictively update cache so UI reacts immediately
+  if (cache && cache.entries) {
+    idsToUpdate.forEach(id => {
+      let entry = cache.entries.find(e => String(e.id) === String(id));
+      if (entry) entry.stampStatus = '✅';
+    });
+  }
+  
+  if (typeof renderTable === 'function') renderTable();
+  
+  // Call backend to persist to Google Sheets Column T
+  if (idsToUpdate.length > 0 && cache && cache.entries) {
+    let groupedByPlan = {};
+    idsToUpdate.forEach(id => {
+      let entry = cache.entries.find(e => String(e.id) === String(id));
+      let p = (entry && entry.plan) ? entry.plan : '1.ฝนหลวง';
+      if (!groupedByPlan[p]) groupedByPlan[p] = [];
+      groupedByPlan[p].push(id);
+    });
+
+    for (let planKey in groupedByPlan) {
+      call('updateStampStatus', { ids: groupedByPlan[planKey].join(','), status: '✅', plan: planKey }).then(res => {
+         if(res && res.success) {
+           groupedByPlan[planKey].forEach(id => {
+             let entry = cache.entries.find(e => String(e.id) === String(id));
+             if (entry) entry.stampStatus = '✅';
+           });
+         }
+      }).catch(e => console.error('Failed to update stamp status to sheet:', e));
+    }
+  }
+
   let frame = document.getElementById('printStampIframe');
   if (frame) frame.remove();
 

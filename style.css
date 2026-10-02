@@ -1,4 +1,4 @@
-﻿/* ═══ CreateSpace Design System Tokens ═══ */
+/* ═══ CreateSpace Design System Tokens ═══ */
 :root {
   /* Brand Colors */
   --primary: #E11D48;
@@ -1588,3 +1588,451 @@ textarea[required]:valid {
     text-align: center;
     margin-top: 4px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STAMP ONLINE — PDF Drag & Drop Stamp Feature
+   ═══════════════════════════════════════════════════════════════ */
+
+#view-stamp-online {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.stamp-online-header {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%);
+  color: white;
+  padding: 20px 24px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px -4px rgba(124, 58, 237, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.stamp-online-icon-wrap {
+  width: 48px;
+  height: 48px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.stamp-online-workspace {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+  min-height: calc(100vh - 240px);
+}
+
+@media (max-width: 960px) {
+  .stamp-online-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Upload Zone ── */
+.stamp-upload-zone {
+  background: white;
+  border: 2.5px dashed #c4b5fd;
+  border-radius: 16px;
+  padding: 60px 40px;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.stamp-upload-zone:hover,
+.stamp-upload-zone.drag-over {
+  border-color: #7c3aed;
+  background: #faf5ff;
+  transform: scale(1.005);
+}
+
+.stamp-upload-zone.drag-over {
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+}
+
+.stamp-upload-icon {
+  width: 88px;
+  height: 88px;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  animation: stampIconFloat 3s ease-in-out infinite;
+}
+
+@keyframes stampIconFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.stamp-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  transition: all 0.2s;
+}
+
+.stamp-upload-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+}
+
+/* ── PDF Viewer ── */
+.stamp-pdf-viewer {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.stamp-pdf-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stamp-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #475569;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+
+.stamp-toolbar-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.stamp-toolbar-btn-danger:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.stamp-canvas-wrapper {
+  position: relative;
+  overflow: auto;
+  max-height: calc(100vh - 280px);
+  background: #94a3b8;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  background-image:
+    linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255,255,255,0.05) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.05) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.05) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+#stampPdfCanvas {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  background: white;
+}
+
+/* ── Draggable Stamp Overlay ── */
+.stamp-draggable {
+  position: absolute;
+  border: 2px solid #7c3aed;
+  border-radius: 4px;
+  background: rgba(124, 58, 237, 0.06);
+  cursor: move;
+  user-select: none;
+  z-index: 50;
+  min-width: 120px;
+  transition: box-shadow 0.2s;
+}
+
+.stamp-draggable:hover {
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.25);
+}
+
+.stamp-draggable.dragging {
+  opacity: 0.9;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+  border-color: #6d28d9;
+}
+
+.stamp-drag-handle {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #7c3aed;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px 4px 0 0;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.stamp-draggable-content {
+  font-family: 'Sarabun', 'TH Sarabun PSK', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #001f60;
+  line-height: 1.4;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.stamp-resize-handle {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 10px;
+  height: 10px;
+  background: #7c3aed;
+  border-radius: 2px;
+  cursor: nwse-resize;
+}
+
+/* ── Right Controls Panel ── */
+.stamp-online-controls {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  overflow: hidden;
+  height: fit-content;
+}
+
+.stamp-ctrl-section {
+  padding: 16px 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.stamp-ctrl-field {
+  margin-bottom: 12px;
+}
+
+.stamp-ctrl-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 5px;
+}
+
+.stamp-ctrl-field input[type="text"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.stamp-ctrl-field input[type="text"]:focus {
+  border-color: #7c3aed;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.stamp-mini-preview {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: 'Sarabun', 'TH Sarabun PSK', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: #001f60;
+  line-height: 1.45;
+  min-height: 80px;
+}
+
+/* ── Action Buttons ── */
+.stamp-action-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+  font-family: inherit;
+}
+
+.stamp-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.stamp-action-btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: white;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.stamp-action-btn-primary:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+}
+
+.stamp-action-btn-success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.stamp-action-btn-success:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.stamp-action-btn-ghost {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.stamp-action-btn-ghost:hover {
+  background: #f8fafc;
+  color: #475569;
+}
+
+/* ── Item Search Results Dropdown ── */
+.stamp-item-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+  z-index: 200;
+  max-height: 280px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.stamp-item-row {
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12px;
+}
+
+.stamp-item-row:last-child {
+  border-bottom: none;
+}
+
+.stamp-item-row:hover {
+  background: #f5f3ff;
+}
+
+.stamp-item-row .item-id {
+  font-weight: 800;
+  color: var(--primary);
+  margin-right: 6px;
+}
+
+.stamp-item-row .item-amt {
+  font-weight: 700;
+  color: #0f172a;
+  float: right;
+}
+
+.stamp-item-row .item-desc {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Selected Item Info Card ── */
+.stamp-selected-info {
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border: 1px solid #c4b5fd;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.stamp-selected-info .sel-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #7c3aed;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stamp-selected-info .sel-id {
+  font-size: 16px;
+  font-weight: 800;
+  color: #5b21b6;
+}
+
+.stamp-selected-info .sel-detail {
+  color: #475569;
+  font-size: 11px;
+  margin-top: 4px;
+}

@@ -32,6 +32,7 @@ function doPost(e) {
     else if (action === 'submitDocTracking') res = budget_submitDocTracking(params.data);
     else if (action === 'gf_updateSheetData') res = gf_updateSheetData(params.data);
     else if (action === 'saveStampSettings') res = budget_saveStampSettings(params.data);
+    else if (action === 'updateStampStatus') res = updateStampStatus(params.data);
 
     return ContentService.createTextOutput(JSON.stringify(res || { error: 'Action not found' })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) { return ContentService.createTextOutput(JSON.stringify({ error: err.message })).setMimeType(ContentService.MimeType.JSON); }
@@ -166,7 +167,8 @@ function budget_getInitialData() {
       liquidateRefNo: liqRef,
       month: month,
       reserveNumber: reserveNumber,
-      docTracking: docTracking
+      docTracking: docTracking,
+      stampStatus: row[19] || ""
     };
   }).reverse();
   const plans = budget_getPlans();
@@ -777,5 +779,35 @@ function budget_saveStampSettings(data) {
     return { success: true, planKey: planKey };
   } catch(e) {
     return { success: false, error: e.message };
+  }
+}
+
+// ==========================================
+// ระบบบันทึกสถานะตรายาง (Column T)
+// ==========================================
+function updateStampStatus(data) {
+  try {
+    const sheet = budget_getTargetSheet(data.plan || '1.ฝนหลวง');
+    const ids = (data.ids || '').toString().split(',');
+    const status = data.status || '';
+    
+    const targetCol = 20; // คอลัมน์ T คือคอลัมน์ที่ 20
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 5) return { success: false, message: 'No data' };
+    
+    const idData = sheet.getRange(5, 1, lastRow - 4, 1).getValues();
+    let updatedCount = 0;
+    
+    for (let i = 0; i < idData.length; i++) {
+      if (ids.includes(idData[i][0].toString())) {
+        sheet.getRange(i + 5, targetCol).setValue(status);
+        updatedCount++;
+      }
+    }
+    
+    return { success: true, updatedCount: updatedCount };
+  } catch (e) {
+    return { success: false, message: e.message };
   }
 }
