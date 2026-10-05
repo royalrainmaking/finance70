@@ -1982,18 +1982,30 @@ function selectFromTable(id, evt) {
   document.getElementById('ctx-deduct').style.display = isLiquidated ? 'none' : 'flex';
   document.getElementById('ctx-offset').style.display = isLiquidated ? 'none' : 'flex';
   document.getElementById('ctx-cancel').style.display = isLiquidated ? 'none' : 'flex';
+  document.getElementById('ctx-delete').style.display = 'flex';
   document.getElementById('ctx-reserve-add').style.display = isLiquidated ? 'none' : 'flex';
   document.getElementById('ctx-edit').style.display = 'flex';
   document.getElementById('ctx-deduct-add').style.display = 'flex';
 
   // Position context menu near cursor
-  const menuW = 210, menuH = 280;
+  ctxMenu.style.visibility = 'hidden';
+  ctxMenu.style.display = 'block'; // force display to measure
+  
+  const menuW = ctxMenu.offsetWidth || 210;
+  const menuH = ctxMenu.offsetHeight || 380;
+  
   let x = evt ? evt.clientX : window.innerWidth / 2;
   let y = evt ? evt.clientY : window.innerHeight / 2;
+  
   if (x + menuW > window.innerWidth) x = window.innerWidth - menuW - 8;
   if (y + menuH > window.innerHeight) y = window.innerHeight - menuH - 8;
+  if (y < 8) y = 8; // prevent cutting off at the top
+  
   ctxMenu.style.left = x + 'px';
   ctxMenu.style.top = y + 'px';
+  
+  ctxMenu.style.display = '';
+  ctxMenu.style.visibility = '';
   ctxMenu.classList.add('visible');
 }
 
@@ -2195,6 +2207,31 @@ function doAction(act) {
           // Stay on table if multiple
           setView('table', document.getElementById('nav-table'));
           renderTable();
+        }
+      }
+    });
+    return;
+  }
+
+  if (act === 'delete') {
+    const e = cache.entries.find(x => x.id == selectedId);
+    Swal.fire({
+      title: 'ยืนยันการลบรายการ?',
+      html: `คุณต้องการลบข้อมูลแถวรหัส <b style="color:var(--primary);">#${selectedId}</b> ใช่หรือไม่?<br>การกระทำนี้จะลบข้อมูลออกจากระบบอย่างถาวรและไม่สามารถกู้คืนได้`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'ใช่, ลบรายการ (Delete)',
+      cancelButtonText: 'ยกเลิก'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        Swal.fire({ title: 'กำลังลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const res = await call('deleteItem', { id: selectedId });
+        if (res && res.success) {
+          Swal.fire('สำเร็จ', `ลบรายการ #${selectedId} เรียบร้อยแล้ว`, 'success');
+          await init();
+          setView('table', document.getElementById('nav-table'));
         }
       }
     });
@@ -5023,28 +5060,7 @@ function renderPendingPlanView() {
     e.id && String(e.plan || '').trim() === ''
   );
 
-  // === DEBUG: แสดงใน console และ UI ===
-  console.log('[PendingPlan] cache.entries total:', cache.entries.length);
-  console.log('[PendingPlan] items with empty plan:', items.length);
-  if (cache.entries.length > 0) {
-    const sample = cache.entries.slice(0, 5);
-    sample.forEach(e => console.log(`  id=${e.id} plan=[${JSON.stringify(e.plan)}] type=${typeof e.plan}`));
-  }
 
-  // แสดง diagnostic ใน UI ถ้าไม่มีรายการ
-  if (items.length === 0 && cache.entries.length > 0) {
-    const planSample = cache.entries.slice(0, 10).map(e =>
-      `#${e.id}: plan=[${JSON.stringify(e.plan)}]`
-    ).join('<br>');
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:left; padding:20px; font-size:12px; background:#fef9c3; border:1px solid #fde68a;">
-      <b>🔍 Debug:</b> พบ entries ทั้งหมด ${cache.entries.length} รายการ แต่ไม่มีที่ plan ว่าง<br>
-      <b>ตัวอย่าง 10 รายการแรก:</b><br>${planSample}<br><br>
-      <i>กรุณาดู Console (F12) เพื่อข้อมูลเพิ่มเติม</i>
-    </td></tr>`;
-    if (statCount) statCount.textContent = '0 รายการ';
-    if (statAmount) statAmount.textContent = '0.00 บาท';
-    return;
-  }
 
   // Populate dept filter — ดึงจาก items ทั้งหมดที่ col B ว่าง
   if (deptFilter) {
@@ -5106,9 +5122,9 @@ function renderPendingPlanView() {
     const isPO = (e.type && e.type.toString().toUpperCase() === 'PO') || (e.colF && e.colF.toString().toUpperCase() === 'PO');
     const rowStyle = isPO ? 'background:#fffbeb;' : '';
 
-    return `<tr style="cursor:pointer; transition:background 0.15s; ${rowStyle}"
+    return `<tr style="cursor:context-menu; transition:background 0.15s; ${rowStyle}"
         onmouseover="this.style.background='#f0f9ff'"
-        onmouseout="this.style.background='${isPO ? '#fffbeb' : ''}'">
+        onmouseout="this.style.background='${isPO ? '#fffbeb' : ''}'" oncontextmenu="event.preventDefault(); selectFromTable('${e.id}', event)" class="table-row-clickable">
       <td style="text-align:center; width:40px;">
         <input type="checkbox" class="row-checkbox" data-amt="${e.amount || 0}"
           onchange="updateSelectedTotal()">

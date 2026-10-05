@@ -24,6 +24,7 @@ function doPost(e) {
     else if (action === 'submitDeductAdd') res = budget_submitDeductAdd(params.data);
     else if (action === 'submitUpdate') res = budget_submitUpdate(params.data);
     else if (action === 'submitCancel') res = budget_submitCancel(params.data);
+    else if (action === 'deleteItem') res = budget_deleteItem(params.data);
     else if (action === 'submitReserveNo') res = budget_submitReserveNo(params.data);
     else if (action === 'submitReserveAndDeduct') res = budget_submitReserveAndDeduct(params.data);
     else if (action === 'savePlan') res = budget_savePlan(params.data);
@@ -421,6 +422,21 @@ function budget_submitDeductAdd(data) {
   
   budget_applyFormulas(sheet, nr);
   return { success: true, id: nId };
+}
+
+function budget_deleteItem(data) {
+  const sheet = budget_getTargetSheet();
+  const lastRow = sheet.getLastRow();
+  const idData = sheet.getRange(DATA_START_ROW, 1, Math.max(1, lastRow - (DATA_START_ROW - 1)), 1).getValues();
+
+  let target = -1;
+  for (let i = idData.length - 1; i >= 0; i--) {
+    if (idData[i][0].toString().trim() === data.id.toString().trim()) { target = i + DATA_START_ROW; break; }
+  }
+  if (target === -1) throw new Error("ID not found");
+
+  sheet.deleteRow(target);
+  return { success: true };
 }
 
 function budget_submitCancel(data) {

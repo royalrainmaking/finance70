@@ -876,7 +876,8 @@ input:focus {
   padding: 8px;
   display: none;
   animation: ctxFadeIn 0.15s ease;
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: 85vh;
 }
 
 #rowContextMenu.visible {
