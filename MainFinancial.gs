@@ -8,6 +8,8 @@ function doGet(e) {
     if (action === 'getInitialData') return ContentService.createTextOutput(JSON.stringify(budget_getInitialData())).setMimeType(ContentService.MimeType.JSON);
     if (action === 'getBuranakanData') return ContentService.createTextOutput(JSON.stringify(budget_getBuranakanData(e.parameter.planKey))).setMimeType(ContentService.MimeType.JSON);
     if (action === 'gf_getSheetData') return ContentService.createTextOutput(JSON.stringify(gf_getSheetData())).setMimeType(ContentService.MimeType.JSON);
+    if (action === 'foreign_getData') return ContentService.createTextOutput(JSON.stringify(foreign_getData())).setMimeType(ContentService.MimeType.JSON);
+    if (action === 'getContracts') return ContentService.createTextOutput(JSON.stringify(contract_getContracts())).setMimeType(ContentService.MimeType.JSON);
     return ContentService.createTextOutput(JSON.stringify({ error: 'Invalid Action' })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) { return ContentService.createTextOutput(JSON.stringify({ error: err.message })).setMimeType(ContentService.MimeType.JSON); }
 }
@@ -34,6 +36,12 @@ function doPost(e) {
     else if (action === 'gf_updateSheetData') res = gf_updateSheetData(params.data);
     else if (action === 'saveStampSettings') res = budget_saveStampSettings(params.data);
     else if (action === 'updateStampStatus') res = updateStampStatus(params.data);
+    else if (action === 'saveContract') res = contract_saveContract(params.data);
+    else if (action === 'deleteContract') res = contract_deleteContract(params.data);
+    else if (action === 'foreign_add') res = foreign_add(params.data);
+    else if (action === 'gf_updateExtra') res = gf_updateExtra(params.data);
+    else if (action === 'foreign_update') res = foreign_update(params.data);
+    else if (action === 'foreign_delete') res = foreign_delete(params.data);
 
     return ContentService.createTextOutput(JSON.stringify(res || { error: 'Action not found' })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) { return ContentService.createTextOutput(JSON.stringify({ error: err.message })).setMimeType(ContentService.MimeType.JSON); }
@@ -823,6 +831,404 @@ function updateStampStatus(data) {
     }
     
     return { success: true, updatedCount: updatedCount };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+// ==========================================
+// ระบบบริหารสัญญา (Contracts)
+// ==========================================
+
+// ระบบบริหารสัญญา: เก็บข้อมูลในชีต "สัญญา" ของสเปรดชีตกันเงิน (SPREADSHEET_ID)
+// ตั้งค่าครั้งแรก: เลือกฟังก์ชัน setupContractSheet แล้วกด Run
+//   -> สร้างชีต "สัญญา" และย้ายข้อมูลจากชีต "Contracts" เดิมมาให้ (ชีตเดิมเก็บไว้เป็นแบ็กอัป)
+const CONTRACT_SHEET_NAME = 'สัญญา';
+const CONTRACT_OLD_SHEET_NAME = 'Contracts';
+const CONTRACT_LEGACY_SHEET_ID = '1IIVGMkbANWYbWAsRXGBKUJuvkXxPUsECatdzRPauvtw';
+const CONTRACT_LEGACY_SHEET_NAME = 'Projects';
+const AIRCRAFT_PLAN = 'จัดหาอากาศยาน';
+
+// ลำดับคอลัมน์ของชีต "สัญญา" (key = ชื่อฟิลด์ในระบบ, label = หัวคอลัมน์ในชีต)
+const CONTRACT_COLS = [
+  ['id', 'ID'],
+  ['plan', 'แผนงาน'],
+  ['itemType', 'ประเภทงบ'],
+  ['name', 'ชื่อโครงการ'],
+  ['contractType', 'วิธีจัดซื้อจัดจ้าง'],
+  ['contractor', 'ผู้รับจ้าง'],
+  ['supervisor', 'ผู้ควบคุมงาน'],
+  ['contractNo', 'เลขที่สัญญา'],
+  ['allocated', 'งบที่ได้รับจัดสรร'],
+  ['budget', 'วงเงินโครงการ'],
+  ['po', 'PO'],
+  ['disbursed', 'เบิกจ่าย'],
+  ['duration', 'ระยะเวลา (วัน)'],
+  ['tor', 'TOR'],
+  ['announce', 'ประกาศ'],
+  ['consideration', 'พิจารณา'],
+  ['appeal', 'อุทธรณ์'],
+  ['waitsign', 'รอลงนาม'],
+  ['signed', 'ลงนามสัญญา'],
+  ['date_inspection', 'วันที่ตรวจรับ'],
+  ['date_payment', 'วันที่เบิกจ่าย'],
+  ['gfRefNo', 'เลขที่ขอเบิก (GF)'],
+  ['gfDate', 'วันที่ GF'],
+  ['comm_tor', 'กก.กำหนด TOR'],
+  ['comm_eval', 'กก.พิจารณา'],
+  ['comm_inspect', 'กก.ตรวจรับ'],
+  ['notes_json', 'ข้อมูลอื่น (JSON)'],
+  ['updatedAt', 'อัปเดตล่าสุด']
+];
+const CONTRACT_KEYS = CONTRACT_COLS.map(c => c[0]);
+const CONTRACT_NOTE_KEYS = ['plan', 'itemType', 'contractNo', 'date_inspection', 'date_payment', 'gfRefNo', 'gfDate', 'comm_tor', 'comm_eval', 'comm_inspect'];
+const CONTRACT_DATE_KEYS = ['tor', 'announce', 'consideration', 'appeal', 'waitsign', 'signed'];
+
+function contract_cellStr_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'Asia/Bangkok', 'yyyy-MM-dd');
+  return v === null || v === undefined ? '' : String(v);
+}
+
+// แปลงแถวในชีต -> object รูปแบบที่หน้าเว็บใช้ { ..., dates: {}, notes: {} }
+function contract_rowToObj_(row) {
+  const r = {};
+  CONTRACT_KEYS.forEach((k, i) => r[k] = row[i]);
+  let notes = {};
+  try { notes = r.notes_json ? JSON.parse(String(r.notes_json)) : {}; } catch (e) {}
+  CONTRACT_NOTE_KEYS.forEach(k => { const v = contract_cellStr_(r[k]); if (v !== '') notes[k] = v; else delete notes[k]; });
+  const dates = {};
+  CONTRACT_DATE_KEYS.forEach(k => dates[k] = contract_cellStr_(r[k]));
+  return {
+    id: Number(r.id),
+    name: contract_cellStr_(r.name),
+    contractType: contract_cellStr_(r.contractType),
+    contractor: contract_cellStr_(r.contractor),
+    supervisor: contract_cellStr_(r.supervisor),
+    allocated: Number(r.allocated) || 0,
+    budget: Number(r.budget) || 0,
+    po: Number(r.po) || 0,
+    disbursed: Number(r.disbursed) || 0,
+    duration: Number(r.duration) || 0,
+    dates: dates,
+    notes: notes
+  };
+}
+
+// แปลง object จากหน้าเว็บ -> แถวในชีต
+function contract_objToRow_(p, id) {
+  const notes = Object.assign({}, p.notes || {});
+  const d = p.dates || {};
+  // แผนจัดหาอากาศยาน: ประเภทงบเป็นงบลงทุนเสมอ
+  if (notes.itemType === AIRCRAFT_PLAN) { notes.plan = AIRCRAFT_PLAN; notes.itemType = 'งบลงทุน'; }
+  if (notes.plan === AIRCRAFT_PLAN && !notes.itemType) notes.itemType = 'งบลงทุน';
+  const rest = Object.assign({}, notes);
+  CONTRACT_NOTE_KEYS.forEach(k => delete rest[k]);
+  const v = {
+    id: id, plan: notes.plan || '', itemType: notes.itemType || '', name: p.name || '',
+    contractType: p.contractType || '', contractor: p.contractor || '', supervisor: p.supervisor || '',
+    contractNo: notes.contractNo || '',
+    allocated: Number(p.allocated) || 0, budget: Number(p.budget) || 0, po: Number(p.po) || 0, disbursed: Number(p.disbursed) || 0,
+    duration: Number(p.duration) || 0,
+    date_inspection: notes.date_inspection || '', date_payment: notes.date_payment || '',
+    gfRefNo: notes.gfRefNo || '', gfDate: notes.gfDate || '',
+    comm_tor: notes.comm_tor || '', comm_eval: notes.comm_eval || '', comm_inspect: notes.comm_inspect || '',
+    notes_json: Object.keys(rest).length ? JSON.stringify(rest) : '',
+    updatedAt: new Date()
+  };
+  CONTRACT_DATE_KEYS.forEach(k => v[k] = d[k] || '');
+  return CONTRACT_KEYS.map(k => v[k]);
+}
+
+function contract_getSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(CONTRACT_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONTRACT_SHEET_NAME);
+    contract_formatSheet_(sheet);
+    contract_migrate_(ss, sheet);
+  } else {
+    contract_ensureColumns_(sheet);
+  }
+  return sheet;
+}
+
+// ชีตที่สร้างไว้ก่อนแล้ว: แทรกคอลัมน์ใหม่ (เช่น เลขที่ขอเบิก/วันที่ GF) ให้ตรงตำแหน่ง โดยข้อมูลเดิมไม่เลื่อนผิดช่อง
+function contract_ensureColumns_(sheet) {
+  for (let i = 0; i < CONTRACT_COLS.length; i++) {
+    const width = Math.max(sheet.getLastColumn(), 1);
+    const header = sheet.getRange(1, 1, 1, width).getValues()[0].map(String);
+    const label = CONTRACT_COLS[i][1];
+    if (header.indexOf(label) !== -1) continue;
+    if (i < width) sheet.insertColumnBefore(i + 1);
+    sheet.getRange(1, i + 1).setValue(label).setFontWeight('bold').setBackground('#1bb295').setFontColor('white');
+  }
+}
+
+function contract_formatSheet_(sheet) {
+  const n = CONTRACT_COLS.length;
+  sheet.getRange(1, 1, 1, n).setValues([CONTRACT_COLS.map(c => c[1])])
+    .setFontWeight('bold').setBackground('#1bb295').setFontColor('white').setWrap(true).setVerticalAlignment('middle');
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(4);
+  // คอลัมน์เงิน: งบที่ได้รับจัดสรร, วงเงินโครงการ, PO, เบิกจ่าย
+  sheet.getRange(2, 9, sheet.getMaxRows() - 1, 4).setNumberFormat('#,##0.00');
+  sheet.setColumnWidth(4, 320);
+  // คอลัมน์ที่ระบบใช้ภายใน
+  sheet.getRange(1, CONTRACT_KEYS.indexOf('notes_json') + 1, 1, 2).setBackground('#94a3b8');
+}
+
+// ย้ายข้อมูลจากชีต Contracts (หรือชีตระบบสัญญาเดิม) มาชีตใหม่ — ทำครั้งเดียวตอนสร้างชีต
+function contract_migrate_(ss, sheet) {
+  let src = ss.getSheetByName(CONTRACT_OLD_SHEET_NAME);
+  if (!src || src.getLastRow() < 2) {
+    try { src = SpreadsheetApp.openById(CONTRACT_LEGACY_SHEET_ID).getSheetByName(CONTRACT_LEGACY_SHEET_NAME); } catch (e) { src = null; }
+  }
+  if (!src || src.getLastRow() < 2) return 0;
+  const cols = Math.min(src.getLastColumn(), 17);
+  const rows = src.getRange(2, 1, src.getLastRow() - 1, cols).getValues().filter(r => r[0] !== '' && r[0] !== null);
+  const out = rows.map(r => {
+    let notes = {};
+    try { notes = r[15] ? JSON.parse(String(r[15])) : {}; } catch (e) {}
+    const p = {
+      name: r[1], contractType: r[2], contractor: r[3], supervisor: r[4],
+      budget: r[5], po: r[6], disbursed: r[7], duration: r[14], allocated: cols >= 17 ? r[16] : 0,
+      dates: { tor: contract_cellStr_(r[8]), announce: contract_cellStr_(r[9]), consideration: contract_cellStr_(r[10]),
+               appeal: contract_cellStr_(r[11]), waitsign: contract_cellStr_(r[12]), signed: contract_cellStr_(r[13]) },
+      notes: notes
+    };
+    return contract_objToRow_(p, Number(r[0]));
+  });
+  if (out.length) sheet.getRange(2, 1, out.length, CONTRACT_COLS.length).setValues(out);
+  return out.length;
+}
+
+// ตั้งค่าครั้งแรก: สร้างชีต "สัญญา" + ย้ายข้อมูล + เพิ่มแผนงาน "จัดหาอากาศยาน" (รันซ้ำได้)
+function setupContractSheet() {
+  const sheet = contract_getSheet();
+  Logger.log('✔ ชีต ' + CONTRACT_SHEET_NAME + ' พร้อมใช้ — มี ' + Math.max(0, sheet.getLastRow() - 1) + ' โครงการ');
+
+  const planSheet = budget_getPlanSettingsSheet();
+  const names = planSheet.getLastRow() >= 2 ? planSheet.getRange(2, 1, planSheet.getLastRow() - 1, 1).getValues().map(r => String(r[0])) : [];
+  if (names.indexOf(AIRCRAFT_PLAN) === -1) {
+    planSheet.appendRow([AIRCRAFT_PLAN, 'จัดหาอากาศยาน', '', '', '', '', 0, 0, 0, '#0ea5e9', '']);
+    Logger.log('✔ เพิ่มแผนงาน "' + AIRCRAFT_PLAN + '" แล้ว');
+  } else {
+    Logger.log('✔ มีแผนงาน "' + AIRCRAFT_PLAN + '" อยู่แล้ว');
+  }
+
+  // ลบแผนงาน "ต่างประเทศ" ที่ค้างอยู่ (ต่างประเทศไม่ใช่แผน — ใช้เมนูรายจ่ายอื่น (ต่างประเทศ) แทน)
+  const removedPlan = contract_deleteRowsWhere_(planSheet, r => String(r[0]) === 'ต่างประเทศ');
+  const removedCat = contract_deleteRowsWhere_(budget_getCustomCategoriesSheet(), r => String(r[1]) === 'เดินทางไปต่างประเทศ');
+  if (removedPlan || removedCat) Logger.log('✔ ลบแผนงาน "ต่างประเทศ" ' + removedPlan + ' แถว และหมวด ' + removedCat + ' แถว');
+}
+
+function contract_deleteRowsWhere_(sheet, test) {
+  const last = sheet.getLastRow();
+  if (last < 2) return 0;
+  const rows = sheet.getRange(2, 1, last - 1, Math.max(2, sheet.getLastColumn())).getValues();
+  let n = 0;
+  for (let i = rows.length - 1; i >= 0; i--) if (test(rows[i])) { sheet.deleteRow(i + 2); n++; }
+  return n;
+}
+
+function contract_getContracts() {
+  try {
+    const sheet = contract_getSheet();
+    const last = sheet.getLastRow();
+    if (last < 2) return { status: 'success', data: [] };
+    const rows = sheet.getRange(2, 1, last - 1, CONTRACT_COLS.length).getValues();
+    const data = rows.filter(r => r[0] !== '' && r[0] !== null).map(contract_rowToObj_);
+    return { status: 'success', data: data };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}
+
+function contract_saveContract(project) {
+  try {
+    const sheet = contract_getSheet();
+    const last = sheet.getLastRow();
+    const ids = last >= 2 ? sheet.getRange(2, 1, last - 1, 1).getValues().map(r => Number(r[0])) : [];
+    const isEdit = project.id !== undefined && project.id !== null && project.id !== '';
+    let id, row = -1;
+    if (isEdit) {
+      id = Number(project.id);
+      const i = ids.indexOf(id);
+      if (i >= 0) row = i + 2;
+    } else {
+      id = ids.reduce((m, v) => (v > m ? v : m), 0) + 1;
+    }
+    const values = contract_objToRow_(project, id);
+    if (row > 0) sheet.getRange(row, 1, 1, values.length).setValues([values]);
+    else sheet.appendRow(values);
+    return { status: 'success', id: id };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}
+
+function contract_deleteContract(data) {
+  try {
+    const sheet = contract_getSheet();
+    const last = sheet.getLastRow();
+    if (last >= 2) {
+      const ids = sheet.getRange(2, 1, last - 1, 1).getValues();
+      for (let i = ids.length - 1; i >= 0; i--) {
+        if (Number(ids[i][0]) === Number(data.id)) { sheet.deleteRow(i + 2); return { status: 'success' }; }
+      }
+    }
+    return { status: 'error', message: 'Not found' };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}
+
+// ==========================================
+// รายจ่ายอื่น (เดินทางไปต่างประเทศ) — เก็บในชีต ต่างประเทศ
+// type: จัดสรร | กันเงิน | ตัดยอด | ตัดยอดเพิ่ม | หักล้าง
+// ==========================================
+const FOREIGN_SHEET_NAME = 'ต่างประเทศ';
+const FOREIGN_HEADERS = ['id', 'parentId', 'type', 'date', 'refNo', 'name', 'desc', 'allocation', 'reserve', 'deduct', 'liqRefNo', 'gfDate', 'remark', 'createdAt'];
+
+function foreign_getSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(FOREIGN_SHEET_NAME);
+  if (!sheet) {
+    // ข้อมูลเดิมอยู่ในชีต ForeignTravel -> เปลี่ยนชื่อเป็น ต่างประเทศ (ข้อมูลไม่หาย)
+    const old = ss.getSheetByName('ForeignTravel');
+    sheet = old ? old.setName(FOREIGN_SHEET_NAME) : ss.insertSheet(FOREIGN_SHEET_NAME);
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, FOREIGN_HEADERS.length).setValues([FOREIGN_HEADERS])
+      .setFontWeight('bold').setBackground('#0d9488').setFontColor('white');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function foreign_fmtDate_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'Asia/Bangkok', 'yyyy-MM-dd');
+  return v ? String(v) : '';
+}
+
+function foreign_getData() {
+  try {
+    const sheet = foreign_getSheet();
+    const last = sheet.getLastRow();
+    if (last < 2) return { status: 'success', data: [] };
+    const rows = sheet.getRange(2, 1, last - 1, FOREIGN_HEADERS.length).getValues();
+    const data = rows.filter(r => r[0] !== '').map(r => ({
+      id: String(r[0]), parentId: String(r[1] || ''), type: String(r[2] || ''),
+      date: foreign_fmtDate_(r[3]), refNo: String(r[4] || ''), name: String(r[5] || ''), desc: String(r[6] || ''),
+      allocation: Number(r[7]) || 0, reserve: Number(r[8]) || 0, deduct: Number(r[9]) || 0,
+      liqRefNo: String(r[10] || ''), gfDate: foreign_fmtDate_(r[11]), remark: String(r[12] || '')
+    }));
+    return { status: 'success', data: data };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}
+
+function foreign_add(d) {
+  try {
+    const sheet = foreign_getSheet();
+    const last = sheet.getLastRow();
+    let id;
+    if (d.parentId) {
+      // รายการย่อย: 5.1, 5.2 ...
+      const ids = last >= 2 ? sheet.getRange(2, 1, last - 1, 1).getValues().map(r => String(r[0])) : [];
+      let maxSub = 0;
+      ids.forEach(x => { if (x.indexOf(d.parentId + '.') === 0) maxSub = Math.max(maxSub, parseInt(x.split('.')[1], 10) || 0); });
+      id = d.parentId + '.' + (maxSub + 1);
+    } else {
+      const ids = last >= 2 ? sheet.getRange(2, 1, last - 1, 1).getValues() : [];
+      let max = 0; ids.forEach(r => { const v = parseInt(r[0], 10); if (!isNaN(v) && v > max) max = v; });
+      id = String(max + 1);
+    }
+    sheet.appendRow([
+      id, d.parentId || '', d.type || '', d.date || new Date(), d.refNo || '', d.name || '', d.desc || '',
+      Number(d.allocation) || 0, Number(d.reserve) || 0, Number(d.deduct) || 0,
+      d.liqRefNo || '', d.gfDate || '', d.remark || '', new Date()
+    ]);
+    return { status: 'success', id: id };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}
+
+function foreign_findRow_(sheet, id) {
+  const last = sheet.getLastRow();
+  if (last < 2) return -1;
+  const ids = sheet.getRange(2, 1, last - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(id)) return i + 2;
+  return -1;
+}
+
+function foreign_update(d) {
+  try {
+    const sheet = foreign_getSheet();
+    const row = foreign_findRow_(sheet, d.id);
+    if (row < 0) return { status: 'error', message: 'ไม่พบรายการ ' + d.id };
+    const fields = { date: 4, refNo: 5, name: 6, desc: 7, allocation: 8, reserve: 9, deduct: 10, liqRefNo: 11, gfDate: 12, remark: 13 };
+    Object.keys(fields).forEach(k => { if (d[k] !== undefined) sheet.getRange(row, fields[k]).setValue(d[k]); });
+    return { status: 'success' };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}
+
+function foreign_delete(d) {
+  try {
+    const sheet = foreign_getSheet();
+    const last = sheet.getLastRow();
+    if (last < 2) return { status: 'error', message: 'ไม่พบรายการ' };
+    const ids = sheet.getRange(2, 1, last - 1, 2).getValues();
+    // ลบรายการและรายการย่อยทั้งหมด (จากล่างขึ้นบน)
+    for (let i = ids.length - 1; i >= 0; i--) {
+      if (String(ids[i][0]) === String(d.id) || String(ids[i][1]) === String(d.id)) sheet.deleteRow(i + 2);
+    }
+    return { status: 'success' };
+  } catch (e) {
+    return { status: 'error', message: e.message };
+  }
+}
+
+// สร้างชีต "ต่างประเทศ": เลือก setupForeignSheet แล้วกด Run (รันซ้ำได้)
+function setupForeignSheet() {
+  const f = foreign_getSheet();
+  Logger.log('✔ ชีต ต่างประเทศ พร้อมใช้ — มี ' + Math.max(0, f.getLastRow() - 1) + ' รายการ');
+}
+
+// ==========================================
+// ระบบอัปเดต GF: เขียนวันที่ GF ให้สัญญา (ชีต สัญญา) และรายการตัดยอดต่างประเทศ
+// data = { contracts: [{id, gfDate}], foreign: [{id, gfDate}] } — เขียนเฉพาะช่องที่ยังว่าง
+// ==========================================
+function gf_updateExtra(data) {
+  try {
+    let contracts = 0, foreign = 0, skipped = 0;
+    if (data && data.contracts && data.contracts.length) {
+      const sh = contract_getSheet();
+      const col = CONTRACT_KEYS.indexOf('gfDate') + 1;
+      const last = sh.getLastRow();
+      const ids = last >= 2 ? sh.getRange(2, 1, last - 1, 1).getValues().map(r => Number(r[0])) : [];
+      data.contracts.forEach(u => {
+        const i = ids.indexOf(Number(u.id));
+        if (i < 0) return;
+        const cell = sh.getRange(i + 2, col);
+        if (cell.getValue() === '' || cell.getValue() === null) { cell.setValue(u.gfDate); contracts++; } else skipped++;
+      });
+    }
+    if (data && data.foreign && data.foreign.length) {
+      const sh = foreign_getSheet();
+      const col = FOREIGN_HEADERS.indexOf('gfDate') + 1;
+      data.foreign.forEach(u => {
+        const row = foreign_findRow_(sh, u.id);
+        if (row < 0) return;
+        const cell = sh.getRange(row, col);
+        if (cell.getValue() === '' || cell.getValue() === null) { cell.setValue(u.gfDate); foreign++; } else skipped++;
+      });
+    }
+    return { success: true, contracts: contracts, foreign: foreign, skipped: skipped };
   } catch (e) {
     return { success: false, message: e.message };
   }

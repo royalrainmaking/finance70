@@ -234,7 +234,12 @@ async function init() {
         if (e.dept) e.dept = e.dept.toString().replace(/\.+$/, '').trim();
       });
     }
+    // "ต่างประเทศ" ไม่ใช่แผนงาน (ใช้เมนูรายจ่ายอื่น (ต่างประเทศ) แทน) — ไม่แสดงเป็นแท็บแผน
+    if (Array.isArray(d.plans)) d.plans = d.plans.filter(p => !/^\s*ต่างประเทศ\s*$/.test(String(p.shortName || '').replace(/[\u200B-\u200D\uFEFF]/g, '')));
     cache = d; document.getElementById('dateDisplay').innerText = d.todayThai;
+    // โหลดข้อมูลสัญญาใหม่ทุกครั้งที่กดโหลดข้อมูลใหม่ (งบที่ได้รับจัดสรร/PO/เบิกจ่าย)
+    if (typeof loadContractsForSpending === 'function') loadContractsForSpending(true);
+    if (typeof loadForeignForSpending === 'function') loadForeignForSpending(true);
     updateDataLists(d.entries);
     updateCategoryDropdowns();
 
@@ -475,7 +480,8 @@ const FIXED_CATEGORIES = {
 function updateCategoryDropdowns(plan) {
   document.querySelectorAll('.type-select').forEach(el => handleTypeChange(el));
 
-  const allSelects = document.querySelectorAll('.catSelect, #rdCat, select[name="col"], select[name="cat"]');
+  // ช่องเลือกแผนของระบบ GF ต้องไม่ถูกเติมเป็นรายการหมวด
+  const allSelects = document.querySelectorAll('.catSelect:not(#gfPlanSelector), #rdCat, select[name="col"]:not(#gfPlanSelector), select[name="cat"]:not(#gfPlanSelector)');
   if (!allSelects || !allSelects.length) return;
 
   const allCats = [];
@@ -1139,6 +1145,227 @@ function toggleSpendingCategory(catCode, event) {
   renderSpendingPlan();
 }
 
+// ==========================================
+// ข้อมูลจากระบบบริหารสัญญา -> แผนการใช้จ่าย (หมวดงบลงทุน / งบรายจ่ายอื่น)
+// ==========================================
+let contractsCache = null;
+let contractsLoading = false;
+let contractsLoadedAt = 0;
+
+// แผนงานในระบบสัญญา -> คำที่ใช้ค้นหาแท็บแผนงาน (shortName) ในระบบกันเงิน
+const CONTRACT_PLAN_MAP = [
+  { match: 'จัดหาอากาศยาน', tab: 'อากาศยาน' },
+  { match: 'ฝนหลวง', tab: 'บูรณาการ' },
+  { match: 'ด้านการบิน', tab: 'ยุทธ' },
+  { match: 'ฝุ่น', tab: 'ฝุ่น' },
+  { match: 'ลูกเห็บ', tab: 'ลูกเห็บ' }
+];
+
+function contractPlanToShortName(planText, itemType) {
+  // สัญญาเก่าที่เลือก "จัดหาอากาศยาน" เป็นประเภทงบ ให้ไปอยู่แผนจัดหาอากาศยาน
+  const text = (itemType === 'จัดหาอากาศยาน' ? 'จัดหาอากาศยาน' : (planText || 'การปฏิบัติการฝนหลวง')).toString();
+  const m = CONTRACT_PLAN_MAP.find(x => text.includes(x.match));
+  if (!m || !cache || !cache.plans) return null;
+  const p = cache.plans.find(x => (x.shortName || '').toString().includes(m.tab));
+  return p ? p.shortName : null;
+}
+
+// ประเภทรายการในระบบสัญญา -> หมวดในแผนการใช้จ่าย
+function contractItemTypeToGroup(itemType) {
+  const t = (itemType || 'งบรายจ่ายอื่น').toString();
+  if (t.includes('ลงทุน') || t.includes('อากาศยาน')) return 'งบลงทุน';
+  return 'งบรายจ่ายอื่น';
+}
+
+async function loadContractsForSpending(force) {
+  if (contractsLoading) return;
+  if (!force && contractsCache && Date.now() - contractsLoadedAt < 30000) return;
+  if (typeof API === 'undefined' || !API) return;
+  contractsLoading = true;
+  try {
+    const res = await fetch(`${API}?action=getContracts&t=${Date.now()}`);
+    const json = await res.json();
+    if (json && json.status === 'success') {
+      contractsCache = json.data || [];
+      contractsLoadedAt = Date.now();
+      const v = document.getElementById('view-spending-plan');
+      if (v && v.classList.contains('active')) renderSpendingPlan();
+    }
+  } catch (err) {
+    console.warn('[contracts] โหลดข้อมูลสัญญาไม่สำเร็จ:', err);
+  } finally {
+    contractsLoading = false;
+  }
+}
+
+// รับวันที่ได้ทั้ง 2026-01-15, 15/01/2026 และ 15/01/2569 (พ.ศ.) คืนค่า 'YYYY-MM-DD' หรือ '' ถ้าไม่ใช่วันที่
+function normalizeContractDate(val) {
+  if (!val) return '';
+  const s = val.toString().trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) { let y = +m[1]; if (y > 2400) y -= 543; return `${y}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`; }
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) { let y = +m[3]; if (y > 2400) y -= 543; return `${y}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`; }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+function isExternalBudgetGroup(gName) {
+  const g = (gName || '').toString();
+  return g.includes('ลงทุน') || g.includes('รายจ่ายอื่น');
+}
+
+// ---- รายจ่ายอื่น (ต่างประเทศ) -> แผนยุทธ / งบรายจ่ายอื่น ----
+const FOREIGN_PLAN_TAB = 'ยุทธ';
+let foreignCache = null;
+let foreignLoading = false;
+let foreignLoadedAt = 0;
+
+async function loadForeignForSpending(force) {
+  if (foreignLoading) return;
+  if (!force && foreignCache && Date.now() - foreignLoadedAt < 30000) return;
+  if (typeof API === 'undefined' || !API) return;
+  foreignLoading = true;
+  try {
+    const res = await fetch(`${API}?action=foreign_getData&t=${Date.now()}`);
+    const json = await res.json();
+    if (json && json.status === 'success') {
+      foreignCache = json.data || [];
+      foreignLoadedAt = Date.now();
+      const v = document.getElementById('view-spending-plan');
+      if (v && v.classList.contains('active')) renderSpendingPlan();
+    }
+  } catch (err) {
+    console.warn('[foreign] โหลดข้อมูลต่างประเทศไม่สำเร็จ:', err);
+  } finally {
+    foreignLoading = false;
+  }
+}
+
+// แปลงรายการต่างประเทศเป็นรายการจำลองแบบ Non-PO:
+//   กันเงินคงค้าง (ยังไม่ตัดยอด) -> เงินกัน, ตัดยอด/ตัดยอดเพิ่ม -> เบิกจ่ายลดยอด (+ GF ถ้ามีวันที่ GF)
+function buildForeignEntriesForPlan(planShortName, summary, groupMap) {
+  if (!foreignCache || !foreignCache.length) return [];
+  if (!(planShortName || '').toString().includes(FOREIGN_PLAN_TAB)) return [];
+  const out = [];
+  const groupName = 'งบรายจ่ายอื่น';
+  let gKey = Object.keys(groupMap).find(g => g.includes('รายจ่ายอื่น'));
+  if (!gKey) { gKey = groupName; groupMap[gKey] = []; }
+  const catKey = 'เดินทางไปต่างประเทศ (ตามระบบรายจ่ายต่างประเทศ)';
+  if (!summary[catKey]) {
+    summary[catKey] = {
+      code: catKey, name: 'เดินทางไปต่างประเทศ', group: gKey, order: 999,
+      alloc: 0, increase: 0, decrease: 0, afterAdj: 0,
+      resNonPO: 0, resPO: 0, deductPO: 0, deductTotal: 0, gfTotal: 0, entries: [], adjustments: []
+    };
+    groupMap[gKey].push(catKey);
+  }
+
+  const items = foreignCache.filter(r => r.type === 'กันเงิน' && !r.parentId);
+  items.forEach(it => {
+    const kids = foreignCache.filter(r => r.parentId === it.id);
+    const offset = kids.filter(k => k.type === 'หักล้าง').reduce((a, k) => a + Math.abs(parseSafeFloat(k.reserve)), 0);
+    const closed = kids.some(k => k.type === 'ตัดยอด');
+    const reserveSum = parseSafeFloat(it.reserve) + kids.filter(k => k.type === 'กันเงิน').reduce((a, k) => a + parseSafeFloat(k.reserve), 0);
+    const outstanding = closed ? 0 : Math.max(0, reserveSum - offset);
+    const alloc = parseSafeFloat(it.allocation);
+    summary[catKey].alloc += alloc;
+    summary[catKey].afterAdj += alloc;
+
+    const base = { isContract: true, plan: planShortName, catCode: catKey, refNo: it.refNo || '-', name: it.name || '-', dept: 'ต่างประเทศ', type: '' };
+    const d0 = normalizeContractDate(it.date) || new Date().toISOString().slice(0, 10);
+    if (outstanding) {
+      out.push({ ...base, id: `FT${it.id}`, date: d0, amount: outstanding, amountDeduct: 0, colE: '', colF: '',
+        desc: `[ต่างประเทศ] กันเงิน: ${it.desc || ''}`, month: toFiscalMonthAbbr(d0) });
+    }
+    kids.filter(k => k.type === 'ตัดยอด' || k.type === 'ตัดยอดเพิ่ม').forEach(k => {
+      const dk = normalizeContractDate(k.date) || d0;
+      const gf = normalizeContractDate(k.gfDate) || (k.gfDate || '').toString().trim();
+      out.push({ ...base, id: `FT${k.id}`, date: dk, amount: 0, amountDeduct: parseSafeFloat(k.deduct),
+        colE: gf, colF: `${k.type} (ต่างประเทศ)`, refNo: k.liqRefNo || base.refNo,
+        desc: `[ต่างประเทศ] ${k.type}: ${it.desc || ''}`, month: toFiscalMonthAbbr(gf) });
+    });
+  });
+  return out;
+}
+
+function toFiscalMonthAbbr(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return '';
+  return ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."][d.getMonth()];
+}
+
+// แปลงสัญญาเป็นรายการจำลอง: (0) เงินกัน ถ้ายังไม่มี PO  (1) ยอดสัญญา PO  (2) ยอดเบิกจ่ายตามสัญญา
+// เพื่อให้สูตรคำนวณเดิมของตารางแผนการใช้จ่ายทำงานได้เหมือนรายการ PO ปกติ
+function buildContractEntriesForPlan(planShortName, summary, groupMap) {
+  if (!contractsCache || !contractsCache.length) return [];
+  const out = [];
+  contractsCache.forEach(c => {
+    const notes = c.notes || {};
+    if (contractPlanToShortName(notes.plan, notes.itemType) !== planShortName) return;
+    const paid = parseSafeFloat(c.disbursed);
+    // ยอดผูกพันต้องไม่น้อยกว่ายอดที่เบิกจ่ายแล้ว (กันกรณีกรอกเบิกจ่ายแต่ไม่ได้กรอก PO หรือเบิกเกิน PO)
+    const po = Math.max(parseSafeFloat(c.po), paid);
+    const budget = parseSafeFloat(c.budget);
+    // ยังไม่มี PO -> ใช้วงเงินงบประมาณเป็น "เงินกัน"; มี PO แล้ว -> เงินกันถูกแทนด้วยยอด PO
+    const reserve = (!po && budget) ? budget : 0;
+    // งบที่ได้รับจัดสรร -> ช่องงบประมาณหลังปรับแผน (ถ้ายังไม่ได้กรอก ใช้วงเงินโครงการแทน)
+    const allocated = parseSafeFloat(c.allocated) || parseSafeFloat(c.budget);
+    if (!po && !paid && !reserve && !allocated) return;
+
+    const groupName = contractItemTypeToGroup(notes.itemType);
+    // สัญญาแสดงเป็นแถวของตัวเองใต้หมวด (ไม่ผูกกับรายการย่อย เช่น ที่ดินและสิ่งก่อสร้าง)
+    let gKey = Object.keys(groupMap).find(g => g.includes(groupName.replace('งบ', '')));
+    if (!gKey) { gKey = groupName; groupMap[gKey] = []; }
+    const catKey = `${groupName} (ตามระบบบริหารสัญญา)`;
+    {
+      if (!summary[catKey]) {
+        summary[catKey] = {
+          code: catKey, name: `${groupName} (ระบบสัญญา)`, group: gKey, order: 999,
+          alloc: 0, increase: 0, decrease: 0, afterAdj: 0,
+          resNonPO: 0, resPO: 0, deductPO: 0, deductTotal: 0, gfTotal: 0, entries: [], adjustments: []
+        };
+        groupMap[gKey].push(catKey);
+      }
+      if (allocated) {
+        summary[catKey].alloc += allocated;
+        summary[catKey].afterAdj += allocated;
+      }
+    }
+
+    const d = c.dates || {};
+    const startDate = [d.signed, d.waitsign, d.appeal, d.consideration, d.announce, d.tor]
+      .map(normalizeContractDate).find(Boolean) || new Date().toISOString().slice(0, 10);
+    const payDate = normalizeContractDate(notes.date_payment);
+    const gfRaw = (notes.gfDate || '').toString().trim();
+    const gfDate = normalizeContractDate(gfRaw) || gfRaw;
+    const base = {
+      isContract: true,
+      plan: planShortName,
+      catCode: catKey,
+      refNo: notes.contractNo || '-',
+      name: c.contractor || '-',
+      dept: 'สัญญา',
+      type: 'PO'
+    };
+    if (reserve) {
+      out.push({ ...base, id: `CT${c.id}-RES`, type: '', date: startDate, amount: reserve, amountDeduct: 0, colE: '', colF: '',
+        desc: `[ระบบสัญญา] กันเงิน (ยังไม่ทำสัญญา): ${c.name || ''}`, month: toFiscalMonthAbbr(startDate) });
+    }
+    if (po) {
+      out.push({ ...base, id: `CT${c.id}-PO`, date: startDate, amount: po, amountDeduct: 0, colE: '', colF: '',
+        desc: `[ระบบสัญญา] ${c.name || ''}`, month: toFiscalMonthAbbr(startDate) });
+    }
+    if (paid) {
+      out.push({ ...base, id: `CT${c.id}-PAY`, date: payDate || startDate, amount: 0, amountDeduct: paid,
+        colE: gfDate, colF: 'เบิกจ่าย (ระบบสัญญา)', refNo: notes.gfRefNo || base.refNo,
+        desc: `[ระบบสัญญา] เบิกจ่าย: ${c.name || ''}`, month: toFiscalMonthAbbr(gfDate) });
+    }
+  });
+  return out;
+}
+
 function renderSpendingPlan() {
   const tbody = document.getElementById('spendingPlanBody');
   if (!currentPlan || !cache || !cache.entries || !cache.plans) {
@@ -1169,6 +1396,8 @@ function renderSpendingPlan() {
   p.budgets.forEach((b, index) => {
     const itemCode = b.item;
     const gName = b.group || 'อื่นๆ';
+    // งบลงทุน / งบรายจ่ายอื่น ใช้ข้อมูลจากระบบบริหารสัญญาและรายจ่ายต่างประเทศเท่านั้น (ไม่ใช้ยอดจากหน้าปรับแผน)
+    if (isExternalBudgetGroup(gName)) return;
     if (!groupMap[gName]) groupMap[gName] = [];
     if (!groupMap[gName].includes(itemCode)) groupMap[gName].push(itemCode);
 
@@ -1209,6 +1438,14 @@ function renderSpendingPlan() {
     !isCancelled(e) &&
     (!spDept || e.dept === spDept)
   );
+
+  // รวมข้อมูลจากระบบบริหารสัญญา (เฉพาะเมื่อไม่ได้กรองตามกลุ่ม/ฝ่าย)
+  loadContractsForSpending(false);
+  loadForeignForSpending(false);
+  if (!spDept) {
+    filtered = filtered.concat(buildContractEntriesForPlan(currentPlan, summary, groupMap));
+    filtered = filtered.concat(buildForeignEntriesForPlan(currentPlan, summary, groupMap));
+  }
 
 
 
@@ -1277,6 +1514,12 @@ function renderSpendingPlan() {
           groupMap[bestGroup].push(catCode);
         }
       }
+    }
+
+    // รายการที่ติ๊กออก (ไม่นับ) ยังแสดงในรายการย่อย แต่ไม่นำมาคำนวณยอด
+    if (excludedSpendingItems.has(e.id)) {
+      summary[catCode].entries.push({ ...e, isPending: false, isPendingGF: false });
+      return;
     }
 
     const amt = parseSafeFloat(e.amount);
@@ -1454,7 +1697,9 @@ function renderSpendingPlan() {
       r.entries.forEach(entry => {
         const hasGF = !!(entry.colE && entry.colE.toString().trim() !== "");
         let badge = '';
-        if (hasGF) {
+        if (entry.isContract) {
+          badge = `<span class="status-tag status-po" style="font-size:9px; padding:2px 4px; border-radius:4px;">${entry.dept === 'ต่างประเทศ' ? 'ต่างประเทศ' : 'ระบบสัญญา'}</span>`;
+        } else if (hasGF) {
           badge = `<span class="status-tag status-success" style="font-size:9px; padding:2px 4px; border-radius:4px; display:inline-block; margin-bottom:4px;">GF สำเร็จ</span><br>
                         <div style="font-size:10px; font-weight:600; color:var(--text-main);">${formatThaiDate(entry.colE)}</div>
                         ${entry.colF ? `<div style="font-size:9px; opacity:0.6; margin-top:2px;">(${entry.colF})</div>` : ''}`;
@@ -1483,11 +1728,11 @@ function renderSpendingPlan() {
         if (hasColH && !hasColG) types.push('pipeline');
 
         subRowsHtml += `
-                  <tr data-types="${types.join(',')}" data-reserve="${money}" data-deduct="${deduct}" style="cursor:context-menu; ${isExcludedItem ? 'opacity:0.5; background-color:#f8fafc;' : ''}" class="sub-entry-row ${isExcludedItem ? 'excluded-row hide-on-print' : ''} table-row-clickable" oncontextmenu="event.preventDefault(); event.stopPropagation(); selectFromTable('${entry.id}', event)">
+                  <tr data-types="${types.join(',')}" data-reserve="${money}" data-deduct="${deduct}" style="cursor:context-menu; ${isExcludedItem ? 'opacity:0.5; background-color:#f8fafc;' : ''}" class="sub-entry-row ${isExcludedItem ? 'excluded-row hide-on-print' : ''} table-row-clickable" oncontextmenu="event.preventDefault(); event.stopPropagation(); ${entry.isContract ? '' : `selectFromTable('${entry.id}', event)`}">
                      <td style="padding:8px; font-size:11px; border-bottom:1px solid #e2e8f0; color:var(--primary); font-weight:700; ${isExcludedItem ? 'text-decoration:line-through;' : ''}">#${entry.id}</td>
                      <td style="padding:8px; font-size:11px; border-bottom:1px solid #e2e8f0; text-align:center; white-space:nowrap;">${formatThaiDate(entry.date)}</td>
-                     <td style="padding:8px; font-size:11px; border-bottom:1px solid #e2e8f0; text-align:center;"><span class="cat-badge" style="font-size:10px; padding:2px 6px; background:#eef2ff; color:#4338ca; border-radius:4px; font-weight:700; white-space:nowrap;">${entry.catCode || '-'}</span></td>
-                     <td style="padding:8px; font-size:11px; border-bottom:1px solid #e2e8f0; white-space:nowrap;">${entry.refNo || '-'}</td>
+                     <td style="padding:8px; font-size:11px; border-bottom:1px solid #e2e8f0; text-align:center; overflow:hidden;"><span class="cat-badge" style="font-size:10px; padding:2px 6px; background:#eef2ff; color:#4338ca; border-radius:4px; font-weight:700; display:inline-block; max-width:100%; white-space:normal; overflow-wrap:anywhere; line-height:1.3;">${entry.isContract ? '-' : (entry.catCode || '-')}</span></td>
+                     <td style="padding:8px; font-size:11px; border-bottom:1px solid #e2e8f0; white-space:normal; overflow-wrap:anywhere;">${entry.refNo || '-'}</td>
                      <td style="padding:8px; font-size:11px; border-bottom:1px solid #e2e8f0; font-weight:700; white-space:normal;">
                        <div style="word-break:break-word; overflow-wrap:break-word; white-space:normal;">
                          ${entry.name || '-'}
@@ -4015,6 +4260,7 @@ function findGfMatches() {
 
     const updates = [];
     const matchMap = new Map();
+    const gfExcelPairs = []; // ใช้จับคู่กับสัญญาและรายการต่างประเทศด้วย
 
     for (let i = 0; i < gfExcelData.length; i++) {
       const excelRow = gfExcelData[i];
@@ -4060,6 +4306,7 @@ function findGfMatches() {
       if (!/^\d{2}-\d{2}-\d+$/.test(excelStrForCheck)) {
         continue;
       }
+      gfExcelPairs.push({ key: excelStrForCheck, value: valueToUse });
 
       for (let j = 0; j < gfTargetSheetData.length; j++) {
         const targetRow = gfTargetSheetData[j];
@@ -4106,10 +4353,13 @@ function findGfMatches() {
     document.getElementById('gfAmountSearchResults').style.display = 'none';
 
     if (updates.length > 0) {
-      executeGfUpdates(updates, selectedPlan);
+      executeGfUpdates(updates, selectedPlan, gfExcelPairs);
     } else {
-      showGfStatus('ไม่พบข้อมูลที่ตรงกัน', 'error');
-      updateGfProgress(100);
+      syncGfExtras(gfExcelPairs).then(ex => {
+        updateGfProgress(100);
+        if (ex.contracts || ex.foreign) showGfStatus(`ไม่พบในชีตกันเงิน แต่อัปเดต GF ให้ ระบบสัญญา ${ex.contracts} รายการ / ต่างประเทศ ${ex.foreign} รายการ`, 'success');
+        else showGfStatus('ไม่พบข้อมูลที่ตรงกัน', 'error');
+      });
     }
 
   } catch (error) {
@@ -4117,16 +4367,56 @@ function findGfMatches() {
   }
 }
 
-async function executeGfUpdates(updates, selectedPlan) {
+// จับคู่เลขเอกสารในไฟล์ GF กับ "เลขที่ขอเบิก (GF)" ของสัญญา และ "เลขที่ตัดยอด" ของรายการต่างประเทศ
+// แล้วเขียนวันที่ GF ให้เฉพาะรายการที่ยังว่าง
+async function syncGfExtras(pairs) {
+  const result = { contracts: 0, foreign: 0 };
+  if (!pairs || !pairs.length || typeof API === 'undefined') return result;
+  const norm = v => addLeadingZeros(String(v || '').trim()).replace(/\s+/g, '').toLowerCase();
+  const map = new Map();
+  pairs.forEach(p => { const k = norm(p.key); if (k && !map.has(k)) map.set(k, p.value); });
+  try {
+    const [cRes, fRes] = await Promise.all([
+      fetch(`${API}?action=getContracts&t=${Date.now()}`).then(r => r.json()).catch(() => null),
+      fetch(`${API}?action=foreign_getData&t=${Date.now()}`).then(r => r.json()).catch(() => null)
+    ]);
+    const contracts = [];
+    ((cRes && cRes.data) || []).forEach(c => {
+      const n = c.notes || {};
+      const k = norm(n.gfRefNo);
+      if (k && !String(n.gfDate || '').trim() && map.has(k)) contracts.push({ id: c.id, gfDate: map.get(k) });
+    });
+    const foreign = [];
+    ((fRes && fRes.data) || []).forEach(r => {
+      if (r.type !== 'ตัดยอด' && r.type !== 'ตัดยอดเพิ่ม') return;
+      const k = norm(r.liqRefNo);
+      if (k && !String(r.gfDate || '').trim() && map.has(k)) foreign.push({ id: r.id, gfDate: map.get(k) });
+    });
+    if (!contracts.length && !foreign.length) return result;
+    const res = await call('gf_updateExtra', { contracts, foreign });
+    if (res && res.success) {
+      result.contracts = res.contracts || 0;
+      result.foreign = res.foreign || 0;
+      if (typeof loadContractsForSpending === 'function') loadContractsForSpending(true);
+      if (typeof loadForeignForSpending === 'function') loadForeignForSpending(true);
+    }
+  } catch (e) {
+    console.warn('[GF] อัปเดต GF ให้สัญญา/ต่างประเทศไม่สำเร็จ:', e);
+  }
+  return result;
+}
+
+async function executeGfUpdates(updates, selectedPlan, gfExcelPairs) {
   showGfStatus('กำลังส่งข้อมูลอัปเดตไปยัง Google Sheet...', 'progress');
   updateGfProgress(80);
 
   const config = { plan: selectedPlan, updateColumn: "G" };
   const res = await call('gf_updateSheetData', { updates: updates, config: config });
 
+  const ex = await syncGfExtras(gfExcelPairs);
   updateGfProgress(100);
   if (res && res.success) {
-    showGfStatus(res.message, 'success');
+    showGfStatus(res.message + ((ex.contracts || ex.foreign) ? ` (+ ระบบสัญญา ${ex.contracts} รายการ / ต่างประเทศ ${ex.foreign} รายการ)` : ''), 'success');
     document.getElementById('gfUpdatedCount').innerText = res.updatedCount || 0;
     document.getElementById('gfSkippedCount').innerText = res.skippedCount || 0;
     document.getElementById('gfColumnFCount').innerText = res.columnFCount || updates.filter(u => u.sourceColumn === 'F').length;

@@ -2038,3 +2038,25 @@ textarea[required]:valid {
   margin-top: 4px;
 }
 .pagination-container { display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 15px; padding-bottom: 10px; } .page-btn { padding: 6px 12px; border: 1px solid #cbd5e1; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; color: #334155; transition: all 0.2s; } .page-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #94a3b8; } .page-btn.active { background: #2563eb; color: white; border-color: #2563eb; } .page-btn:disabled { opacity: 0.5; cursor: not-allowed; } .page-info { font-size: 13px; color: #64748b; margin: 0 10px; }
+
+/* แผนการใช้จ่าย: ให้ช่องข้อความในตารางรายการย่อยตัดบรรทัดได้ (กันข้อความทับคอลัมน์ข้างเคียง) */
+.summary-table .sub-entry-row td:nth-child(3),
+.summary-table .sub-entry-row td:nth-child(4),
+.summary-table .sub-entry-row td:nth-child(5),
+.summary-table .sub-entry-row td:nth-child(7) {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.summary-table .sub-entry-row td:nth-child(3) .cat-badge {
+  white-space: normal !important;
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* แผนการใช้จ่าย: ชื่อรายการ (คอลัมน์แรก) ตัดบรรทัดได้ ไม่ล้นทับตัวเลข */
+#spendingPlanBody > tr > td:first-child {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}

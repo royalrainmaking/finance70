@@ -25,9 +25,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="config.js"></script>
   <script src="stamp-online.js"></script>
-
-
-
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="contracts.css">
+  <link rel="stylesheet" href="foreign.css">
 
 
   <link rel="stylesheet" href="style.css">
@@ -142,6 +143,15 @@
       </div>
 
 
+      <div class="nav-category" style="margin-top:20px;">การบริหารสัญญาและพัสดุ</div>
+      <div class="nav-item" id="nav-contracts" onclick="setView('contracts', this); if(window.contract_init) contract_init();">
+        <span class="material-symbols-outlined" style="color:#0ea5e9;">gavel</span>
+        <span>ระบบบริหารสัญญา</span>
+      </div>
+      <div class="nav-item" id="nav-foreign" onclick="setView('foreign', this); if(window.foreign_init) foreign_init();">
+        <span class="material-symbols-outlined" style="color:#0d9488;">flight_takeoff</span>
+        <span>รายจ่ายอื่น (ต่างประเทศ)</span>
+      </div>
 
       <div class="nav-category" style="margin-top:20px;">ระบบอื่นๆ</div>
       <div class="nav-item" onclick="window.open('https://royalrainmaking.github.io/Documenttracking/', '_blank')">
@@ -850,7 +860,7 @@
             style="margin-bottom: 20px; padding: 16px; border-radius: 8px; border-left: 4px solid var(--primary); background: #f8fafc;">
             <div style="font-weight: 700; margin-bottom: 12px; color: var(--primary-dark);">ขั้นตอนที่ 2:
               เลือกแผนการปฏิบัติงาน (กรองข้อมูลคอลัมน์ B)</div>
-            <select id="gfPlanSelector" class="catSelect"
+            <select id="gfPlanSelector"
               style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 12px; background: white;">
               <option value="1.ฝนหลวง">1.ฝนหลวง</option>
               <option value="2.ด้านการบิน">2.ด้านการบิน</option>
@@ -1186,6 +1196,14 @@
       </div>
     </div>
 
+    <!-- CONTRACTS VIEW -->
+    <div id="view-contracts" class="app-view">
+      <div id="contracts-root"></div>
+    </div>
+    <div id="view-foreign" class="app-view">
+      <div id="foreign-root"></div>
+    </div>
+
       <!-- STAMP ONLINE VIEW -->
       <div id="view-stamp-online" class="app-view">
         <!-- Hero Header -->
@@ -1398,6 +1416,7 @@
   </div>
 
   <script src="app.js"></script>
+  <script src="contracts.js"></script>
+  <script src="foreign.js"></script>
 </body>
-
 </html>
