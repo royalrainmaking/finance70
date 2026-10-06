@@ -1,0 +1,29 @@
+﻿422: 'ตอบแทน ใช้สอย วัสดุ': [
+486: if (FIXED_CATEGORIES['ตอบแทน ใช้สอย วัสดุ']) allCats.push(...FIXED_CATEGORIES['ตอบแทน ใช้สอย วัสดุ']);
+530: if (typeValue === 'ตอบแทน ใช้สอย วัสดุ' || typeValue === 'สาธารณูปโภค') {
+1171: const gName = b.group || 'อื่นๆ';
+1179: group: gName,
+1269: group: bestGroup,
+2472: { group: "ค่าตอบแทน", item: "ค่าอาหารทำการนอกเวลา" }, { group: "ค่าตอบแทน", item: "ค่าตอบแทนคณะกรรมการ" }, { group: "ค่าตอบแทน", item: "ค่าตอบแทนผู้ปฏิบัติงานบนอากาศยาน" 
+2473: { group: "ค่าใช้สอย", item: "ค่าเบี้ยเลี้ยงที่พักพาหนะ" }, { group: "ค่าใช้สอย", item: "ค่าซ่อมแซมยานพาหนะ" }, { group: "ค่าใช้สอย", item: "ค่าซ่อมแซมครุภัณฑ์" }, { group
+2474: { group: "ค่าใช้สอย", item: "ค่าทำความสะอาด" }, { group: "ค่าใช้สอย", item: "รักษาความปลอดภัย" }, { group: "ค่าใช้สอย", item: "จ้างเหมาเอกชนดำเนินงาน" }, { group: "ค่าใช้
+2475: { group: "ค่าใช้สอย", item: "ค่าภาษี/ค่าธรรมเนียมศาล/ค่าเบี้ยประกัน/ค่าธรรมเนียม" }, { group: "ค่าใช้สอย", item: "ค่ารับรองและพิธีการ (ค่าอาหาร)" }, { group: "ค่าใช้สอย",
+2476: { group: "ค่าวัสดุ", item: "วัสดุสำนักงาน" }, { group: "ค่าวัสดุ", item: "วัสดุเชื้อเพลิงและหล่อลื่น (อากาศยาน)" }, { group: "ค่าวัสดุ", item: "วัสดุเชื้อเพลิงและหล่อลื่น
+2477: { group: "ค่าวัสดุ", item: "วัสดุวิทยาศาสตร์และการแพทย์" }, { group: "ค่าวัสดุ", item: "วัสดุคอมพิวเตอร์" }, { group: "ค่าวัสดุ", item: "วัสดุอากาศยาน" }, { group: "ค่าวั
+2478: { group: "ค่าวัสดุ", item: "วัสดุการเกษตร" }, { group: "ค่าวัสดุ", item: "วัสดุงานบ้านงานครัว" }, { group: "ค่าวัสดุ", item: "วัสดุไฟฟ้าและวิทยุ" }, { group: "ค่าวัสดุ", 
+2479: { group: "ค่าสาธารณูปโภค", item: "ค่าโทรศัพท์" }, { group: "ค่าสาธารณูปโภค", item: "ค่าน้ำประปา" }, { group: "ค่าสาธารณูปโภค", item: "ค่าไปรษณีย์โทรเลข" }, { group: "ค่าส
+2480: { group: "งบลงทุน", item: "ที่ดินและสิ่งก่อสร้าง" }, { group: "งบรายจ่ายอื่น", item: "งบรายจ่ายอื่น" }
+2483: function renderSettings() {
+2534: editPlanBudgets = defaultCategories.map(c => ({ group: c.group, item: c.item, allocated: 0, increase: 0, decrease: 0, remark: 'ตั้งต้น' }));
+2545: let g = b.group || 'อื่นๆ';
+2685: editPlanBudgets.push({ group: g, item: i, allocated: 0, increase: result.value.inc, decrease: result.value.dec, remark: result.value.remark });
+2724: group: document.getElementById('swal-group').value,
+2731: editPlanBudgets.push({ group: result.value.group, item: result.value.item, allocated: result.value.alloc, increase: 0, decrease: 0, remark: 'ตั้งต้น' });
+2753: const budgets = editPlanBudgets.filter(b => b.group && b.item);
+2821: if (b.group !== currentGroup) {
+2825: currentGroup = b.group;
+2827: html += `<tr style="background:#f8fafc;"><td colspan="6" style="font-weight:800; color:#475569;">${b.group}</td></tr>`;
+3085: group: b.group || 'อื่นๆ',
+3159: if (b.group !== currentGroup) {
+3163: currentGroup = b.group;
+3165: html += `<tr style="background:#f8fafc;"><td colspan="13" style="font-weight:800; color:#475569;">${b.group}</td></tr>`;

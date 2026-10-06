@@ -1,0 +1,86 @@
+/* รายจ่ายอื่น (เดินทางไปต่างประเทศ) */
+#view-foreign {
+  --ft-accent: #0d9488;
+  --ft-accent-dark: #0f766e;
+  --ft-accent-light: #ccfbf1;
+  --ft-border: #e2e8f0;
+  --ft-muted: #64748b;
+  --ft-text: #0f172a;
+}
+
+#view-foreign .ft-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+#view-foreign .ft-head h2 { margin: 0; font-size: 20px; color: var(--ft-accent-dark); font-weight: 800; }
+#view-foreign .ft-subtitle { font-size: 13px; color: var(--ft-muted); margin-top: 4px; }
+#view-foreign .ft-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+#view-foreign .ft-btn,
+.ft-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px; border: 1px solid var(--ft-accent, #0d9488);
+  background: var(--ft-accent, #0d9488); color: #fff;
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+#view-foreign .ft-btn:hover { background: var(--ft-accent-dark); }
+#view-foreign .ft-btn.ghost { background: #fff; color: var(--ft-accent-dark); border-color: var(--ft-border); }
+#view-foreign .ft-btn.ghost:hover { background: var(--ft-accent-light); }
+#view-foreign .ft-btn .material-symbols-outlined { font-size: 18px; }
+#view-foreign .ft-table .ft-btn { padding: 4px 10px; font-size: 12px; }
+
+#view-foreign .ft-icon { background: none; border: none; cursor: pointer; color: var(--ft-muted); padding: 2px 4px; vertical-align: middle; }
+#view-foreign .ft-icon .material-symbols-outlined { font-size: 19px; }
+#view-foreign .ft-icon:hover { color: var(--ft-accent); }
+#view-foreign .ft-icon.danger:hover { color: #dc2626; }
+
+#view-foreign .ft-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+#view-foreign .ft-card { background: #fff; border: 1px solid var(--ft-border); border-left: 4px solid var(--c, var(--ft-accent)); border-radius: 12px; padding: 14px 16px; }
+#view-foreign .ft-card-label { font-size: 12px; font-weight: 700; color: var(--ft-muted); }
+#view-foreign .ft-card-value { font-size: 20px; font-weight: 800; color: var(--ft-text); margin-top: 6px; font-variant-numeric: tabular-nums; }
+#view-foreign .ft-card-sub { font-size: 11px; color: var(--ft-muted); margin-top: 4px; }
+#view-foreign .c-alloc { --c: #0d9488; }
+#view-foreign .c-res { --c: #2563eb; }
+#view-foreign .c-ded { --c: #c2410c; }
+#view-foreign .c-gf { --c: #16a34a; }
+#view-foreign .c-pipe { --c: #ca8a04; }
+#view-foreign .c-remain { --c: #0f766e; }
+#view-foreign .c-neg { --c: #dc2626; }
+#view-foreign .c-neg .ft-card-value { color: #dc2626; }
+
+#view-foreign .ft-box { background: #fff; border: 1px solid var(--ft-border); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+#view-foreign .ft-box-title { font-size: 15px; font-weight: 800; color: var(--ft-accent-dark); margin-bottom: 12px; }
+#view-foreign .ft-scroll { overflow-x: auto; }
+
+#view-foreign .ft-table { width: 100%; min-width: 1250px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+#view-foreign .ft-table th {
+  background: #f1f5f9; color: var(--ft-muted); font-size: 12px; font-weight: 700; text-align: left;
+  padding: 8px 10px; border-bottom: 1px solid var(--ft-border); position: static; text-transform: none; letter-spacing: 0;
+}
+#view-foreign .ft-table td { padding: 8px 10px; border-bottom: 1px solid var(--ft-border); vertical-align: top; color: var(--ft-text); white-space: normal; overflow-wrap: anywhere; }
+#view-foreign .ft-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#view-foreign .ft-table .neg { color: #dc2626; }
+#view-foreign .ft-table .id { font-weight: 700; color: var(--ft-accent-dark); }
+#view-foreign .ft-table .act { text-align: right; }
+#view-foreign .ft-table .act > .ft-btn { margin-bottom: 4px; }
+#view-foreign .ft-table .act > * { margin-left: 4px; }
+#view-foreign .ft-table .empty { text-align: center; color: var(--ft-muted); padding: 24px; }
+#view-foreign .ft-parent td { font-weight: 600; }
+#view-foreign .ft-parent.closed td { background: #f8fafc; }
+#view-foreign .ft-child td { font-size: 12px; background: #fcfcfd; color: #334155; }
+#view-foreign .ft-child .id { padding-left: 22px; font-weight: 500; }
+#view-foreign .ft-type { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: #f1f5f9; color: #334155; margin-right: 4px; }
+
+#view-foreign .ft-tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+#view-foreign .ft-tag { background: #f1f5f9; color: #475569; }
+#view-foreign .ft-tag.wait { background: #dbeafe; color: #1d4ed8; }
+#view-foreign .ft-tag.done { background: #ffedd5; color: #c2410c; }
+#view-foreign .ft-tag.ok { background: #dcfce7; color: #15803d; }
+#view-foreign .ft-tag.pipe { background: #fef9c3; color: #a16207; }
+
+/* ฟอร์มใน SweetAlert */
+.ft-form { display: grid; gap: 10px; text-align: left; margin-top: 8px; }
+.ft-form .ft-f { display: grid; gap: 4px; }
+.ft-form .ft-f span { font-size: 13px; font-weight: 600; color: #475569; text-transform: none; letter-spacing: 0; }
+.ft-form .ft-f input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background: #fff; }
+.ft-form .ft-f input:focus { outline: none; border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13, 148, 136, .2); }
+.ft-note { font-size: 13px; color: #475569; background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 8px; padding: 8px 10px; text-align: left; }
+#view-foreign .ft-table .pos { color: #15803d; font-weight: 700; }
