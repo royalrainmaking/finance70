@@ -23,15 +23,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="config.js"></script>
-  <script src="stamp-online.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <script src="config.js?v=20261007-0918"></script>
+  <script src="stamp-online.js?v=20261007-0918"></script>
+  <link rel="stylesheet" href="style.css?v=20261007-0918">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="contracts.css">
-  <link rel="stylesheet" href="foreign.css">
+  <link rel="stylesheet" href="contracts.css?v=20261007-0918">
+  <link rel="stylesheet" href="foreign.css?v=20261007-0918">
 
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261007-0918">
 </head>
 
 <body>
@@ -122,16 +122,16 @@
 
     <nav class="nav-menu">
       <div class="nav-category">เมนูหลัก (ใช้บ่อย)</div>
-      <div class="nav-item admin-only active" id="nav-table" onclick="setView('table', this); renderTable()">
-        <span class="material-symbols-outlined">grid_on</span>
-        <span>ตารางรายการทั้งหมด</span>
-      </div>
-      <div class="nav-item" id="nav-pending-plan"
+      <div class="nav-item active" id="nav-pending-plan"
         onclick="setView('pending-plan', this); renderPendingPlanView()">
         <span class="material-symbols-outlined" style="color:#f59e0b;">hourglass_top</span>
         <span>รายการรออนุมัติแผน</span>
         <span id="sidebarPendingBadge"
           style="margin-left:auto; background:#f59e0b; color:white; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:800; display:none;">0</span>
+      </div>
+      <div class="nav-item admin-only" id="nav-table" onclick="setView('table', this); renderTable()">
+        <span class="material-symbols-outlined">grid_on</span>
+        <span>ตารางรายการทั้งหมด</span>
       </div>
       <div class="nav-item" id="nav-reserve" onclick="setView('reserve', this)">
         <span class="material-symbols-outlined" style="color:#10b981;">add_circle</span>
@@ -148,7 +148,7 @@
         <span class="material-symbols-outlined" style="color:#0ea5e9;">gavel</span>
         <span>ระบบบริหารสัญญา</span>
       </div>
-      <div class="nav-item" id="nav-foreign" onclick="setView('foreign', this); if(window.foreign_init) foreign_init();">
+      <div class="nav-item admin-only" id="nav-foreign" onclick="setView('foreign', this); if(window.foreign_init) foreign_init();">
         <span class="material-symbols-outlined" style="color:#0d9488;">flight_takeoff</span>
         <span>รายจ่ายอื่น (ต่างประเทศ)</span>
       </div>
@@ -208,7 +208,7 @@
           style="background:none; border:none; cursor:pointer; color:var(--text-muted); display:none; align-items:center; justify-content:center;">
           <span class="material-symbols-outlined" style="font-size:32px;">chevron_left</span>
         </button>
-        <div class="view-title" id="viewTitle">ตารางรายการทั้งหมด</div>
+        <div class="view-title" id="viewTitle">รายการรออนุมัติแผน</div>
       </div>
       <div class="top-bar-right">
         <div class="date-badge" id="selectedBadge"
@@ -1415,8 +1415,8 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
-  <script src="contracts.js"></script>
-  <script src="foreign.js"></script>
+  <script src="app.js?v=20261007-0918"></script>
+  <script src="contracts.js?v=20261007-0918"></script>
+  <script src="foreign.js?v=20261007-0918"></script>
 </body>
 </html>

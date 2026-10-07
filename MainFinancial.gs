@@ -872,7 +872,7 @@ const CONTRACT_COLS = [
   ['signed', 'ลงนามสัญญา'],
   ['date_inspection', 'วันที่ตรวจรับ'],
   ['date_payment', 'วันที่เบิกจ่าย'],
-  ['gfRefNo', 'เลขที่ขอเบิก (GF)'],
+  ['gfRefNo', 'เลขตัดยอด'],
   ['gfDate', 'วันที่ GF'],
   ['comm_tor', 'กก.กำหนด TOR'],
   ['comm_eval', 'กก.พิจารณา'],
@@ -953,12 +953,17 @@ function contract_getSheet() {
 }
 
 // ชีตที่สร้างไว้ก่อนแล้ว: แทรกคอลัมน์ใหม่ (เช่น เลขที่ขอเบิก/วันที่ GF) ให้ตรงตำแหน่ง โดยข้อมูลเดิมไม่เลื่อนผิดช่อง
+// ชื่อหัวคอลัมน์เดิมที่เปลี่ยนชื่อแล้ว (ชื่อใหม่ -> ชื่อเก่า)
+const CONTRACT_COL_RENAMES = { 'เลขตัดยอด': ['เลขที่ขอเบิก (GF)'] };
+
 function contract_ensureColumns_(sheet) {
   for (let i = 0; i < CONTRACT_COLS.length; i++) {
     const width = Math.max(sheet.getLastColumn(), 1);
     const header = sheet.getRange(1, 1, 1, width).getValues()[0].map(String);
     const label = CONTRACT_COLS[i][1];
     if (header.indexOf(label) !== -1) continue;
+    const oldIdx = (CONTRACT_COL_RENAMES[label] || []).map(o => header.indexOf(o)).find(x => x !== -1);
+    if (oldIdx !== undefined) { sheet.getRange(1, oldIdx + 1).setValue(label); continue; }
     if (i < width) sheet.insertColumnBefore(i + 1);
     sheet.getRange(1, i + 1).setValue(label).setFontWeight('bold').setBackground('#1bb295').setFontColor('white');
   }
@@ -1232,4 +1237,79 @@ function gf_updateExtra(data) {
   } catch (e) {
     return { success: false, message: e.message };
   }
+}
+
+// ==========================================
+// ชีตสรุป (สรุป บูร / ยุทธ / ฝุ่น / ลูกเห็บ): ลิงก์แถว "งบลงทุน" และ "งบรายจ่ายอื่น"
+// ด้วย "สูตร" ที่ดึงจากชีต "สัญญา" และ "ต่างประเทศ" โดยตรง (ใส่ครั้งเดียว อัปเดตเองตลอด)
+// วิธีใช้: เลือกฟังก์ชัน linkSummarySheets แล้วกด Run (รันซ้ำได้ — สูตรจะถูกเขียนทับด้วยสูตรเดิม)
+// สูตรคำนวณเหมือนหน้า "แผนการใช้จ่าย" บนเว็บ
+// ==========================================
+const SUMMARY_SHEETS = [
+  { name: 'สรุป บูร', match: 'ฝนหลวง', foreign: false },
+  { name: 'สรุป ยุทธ', match: 'ด้านการบิน', foreign: true },   // รายจ่ายต่างประเทศอยู่แผนยุทธ
+  { name: 'สรุป ฝุ่น', match: 'ฝุ่น', foreign: false },
+  { name: 'สรุป ลูกเห็บ', match: 'ลูกเห็บ', foreign: false }
+];
+
+function summary_colLetter_(n) { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+
+function summary_findRow_(sheet, label) {
+  const vals = sheet.getRange(1, 2, sheet.getLastRow(), 1).getDisplayValues();
+  for (let i = 0; i < vals.length; i++) if (String(vals[i][0]).replace(/\s+/g, '') === label) return i + 1;
+  return -1;
+}
+
+// สร้างสูตรของแต่ละช่อง สำหรับแผน (keyword) + ประเภทงบ
+function summary_formulas_(keyword, itemType, withForeign, row) {
+  const C = k => "'" + CONTRACT_SHEET_NAME + "'!$" + summary_colLetter_(CONTRACT_KEYS.indexOf(k) + 1) + '$2:$' + summary_colLetter_(CONTRACT_KEYS.indexOf(k) + 1);
+  const plan = C('plan'), type = C('itemType'), alloc = C('allocated'), budget = C('budget'), po = C('po'), paid = C('disbursed'), gf = C('gfDate');
+  const m = 'ISNUMBER(SEARCH("' + keyword + '",' + plan + '))*(' + type + '="' + itemType + '")';
+  const poEff = 'IF(' + po + '>' + paid + ',' + po + ',' + paid + ')';
+  const sp = expr => '=ARRAYFORMULA(SUMPRODUCT(' + m + '*' + expr + '))';
+
+  const F = "'" + FOREIGN_SHEET_NAME + "'!";
+  const fA = F + '$A$2:$A', fB = F + '$B$2:$B', fC = F + '$C$2:$C', fH = F + '$H$2:$H', fI = F + '$I$2:$I', fJ = F + '$J$2:$J', fL = F + '$L$2:$L';
+  const fAlloc = 'SUMIFS(' + fH + ',' + fC + ',"กันเงิน",' + fB + ',"")';
+  const fReserve = 'SUMPRODUCT(((' + fC + '="กันเงิน")+(' + fC + '="หักล้าง"))*' + fI + '*(COUNTIFS(' + fB + ',IF(' + fB + '="",' + fA + ',' + fB + '),' + fC + ',"ตัดยอด")=0))';
+  const fDeduct = 'SUMIFS(' + fJ + ',' + fC + ',"ตัดยอด*")';
+  const fGf = 'SUMIFS(' + fJ + ',' + fC + ',"ตัดยอด*",' + fL + ',"<>")';
+  const plus = x => withForeign ? '+' + x : '';
+  const spF = (expr, fx) => '=ARRAYFORMULA(SUMPRODUCT(' + m + '*' + expr + ')' + plus(fx) + ')';
+
+  const r = row;
+  return {
+    D: spF('IF(' + alloc + '>0,' + alloc + ',' + budget + ')', fAlloc),   // งบที่ได้รับจัดสรร (ไม่กรอก = วงเงินโครงการ)
+    G: '=D' + r,                                                            // งบหลังปรับแผน
+    I: spF('(' + poEff + '=0)*' + budget, fReserve),                        // เงินกัน = วงเงินของสัญญาที่ยังไม่มี PO
+    J: sp(poEff),                                                           // สัญญา (PO)
+    K: sp(paid),                                                            // เบิกเงิน (PO)
+    L: '=J' + r + '-K' + r,                                                 // สัญญาคงเหลือ
+    M: spF(paid, fDeduct),                                                  // เบิกจ่ายลดยอด
+    N: spF('(' + gf + '<>"")*' + paid, fGf),                               // GF รวม
+    Q: '=M' + r + '-N' + r,                                                 // ค้างท่อ
+    S: '=G' + r + '-I' + r + '-L' + r + '-M' + r,                           // งบคงเหลือ หลัง GF + กันเงิน
+    T: '=S' + r
+  };
+}
+
+function linkSummarySheets() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  // ให้ชีต สัญญา / ต่างประเทศ มีคอลัมน์ครบและอยู่ตำแหน่งที่สูตรอ้างถึงก่อน
+  contract_getSheet();
+  foreign_getSheet();
+  const log = [];
+  SUMMARY_SHEETS.forEach(s => {
+    const sheet = ss.getSheetByName(s.name);
+    if (!sheet) { log.push('ไม่พบชีต ' + s.name); return; }
+    [['งบลงทุน', false], ['งบรายจ่ายอื่น', s.foreign]].forEach(([label, withForeign]) => {
+      const row = summary_findRow_(sheet, label);
+      if (row < 0) { log.push(s.name + ': ไม่พบแถว ' + label); return; }
+      const f = summary_formulas_(s.match, label, withForeign, row);
+      Object.keys(f).forEach(col => sheet.getRange(col + row).setFormula(f[col]));
+      log.push(s.name + ': ลิงก์แถว ' + label + ' (แถว ' + row + ')');
+    });
+  });
+  Logger.log(log.join('\n'));
+  return { success: true, log: log };
 }

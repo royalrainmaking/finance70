@@ -79,6 +79,16 @@
             <!-- View: Dashboard -->
             <div class="view-section active" id="view-dashboard">
 
+                <div class="cm-hero">
+                    <div class="cm-hero-text">
+                        <div class="cm-hero-title"><i class="fa-solid fa-file-signature"></i> ระบบบริหารสัญญา</div>
+                        <div class="cm-hero-sub">งบลงทุน · งบรายจ่ายอื่น · จัดหาอากาศยาน</div>
+                    </div>
+                    <button type="button" class="cm-add-btn" onclick="openModal()">
+                        <i class="fa-solid fa-plus"></i> เพิ่มโครงการใหม่
+                    </button>
+                </div>
+
                 <div
                     style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 20px; background: white; padding: 15px 20px; border-radius: 8px; border: 1px solid #e1e8ed; box-shadow: 0 2px 4px rgba(0,0,0,0.02); flex-wrap: wrap; gap: 15px;">
                     <div style="font-weight: 600; color: #2c3e50; font-size: 16px;"><i class="fa-solid fa-chart-line"
@@ -127,26 +137,21 @@
                         <div class="stat-icon"><i class="fa-regular fa-folder-open"></i></div>
                         <div class="stat-title">โครงการทั้งหมด</div>
                         <div class="stat-value" id="stat-total-projects">0</div>
-                        <div class="stat-action" onclick="openModal()"><i class="fa-solid fa-plus"></i> เพิ่มโครงการใหม่
-                        </div>
                     </div>
                     <div class="stat-card green">
                         <div class="stat-icon"><i class="fa-solid fa-check-circle"></i></div>
                         <div class="stat-title">วงเงินงบประมาณรวม (บาท)</div>
                         <div class="stat-value" id="stat-total-budget">0.00</div>
-                        <div class="stat-action"><i class="fa-solid fa-plus"></i> ดูรายละเอียดงบ</div>
                     </div>
                     <div class="stat-card yellow">
                         <div class="stat-icon"><i class="fa-solid fa-file-invoice-dollar"></i></div>
                         <div class="stat-title">PO / ก่อหนี้รวม (บาท)</div>
                         <div class="stat-value" id="stat-total-po">0.00</div>
-                        <div class="stat-action"><i class="fa-solid fa-plus"></i> ดูรายละเอียด PO</div>
                     </div>
                     <div class="stat-card cyan">
                         <div class="stat-icon"><i class="fa-regular fa-credit-card"></i></div>
                         <div class="stat-title">เบิกจ่ายแล้ว (บาท)</div>
                         <div class="stat-value" id="stat-total-disbursed">0.00</div>
-                        <div class="stat-action"><i class="fa-solid fa-plus"></i> ดูประวัติการเบิกจ่าย</div>
                     </div>
                 </div>
 
@@ -459,7 +464,7 @@
                         </div>
                         <div class="form-row three-cols mt-3">
                             <div class="form-group">
-                                <label>เลขที่ขอเบิก (GF)</label>
+                                <label>เลขตัดยอด</label>
                                 <input type="text" id="p-gfref" placeholder="เช่น 69-05-00033">
                             </div>
                             <div class="form-group">

@@ -138,6 +138,15 @@ const PLAN_CATEGORIES = {
         { value: '98', code: 'C12', text: 'C12 - วัสดุอื่นๆ' },
         { value: '101', code: 'C13', text: 'C13 - วัสดุโรงงาน' }
       ]
+    },
+    {
+      label: '2.2 ค่าสาธารณูปโภค', options: [
+        { value: '104', code: 'D1', text: 'D1 - ค่าโทรศัพท์' },
+        { value: '107', code: 'D2', text: 'D2 - ค่าน้ำประปา' },
+        { value: '110', code: 'D3', text: 'D3 - ค่าไปรษณีย์โทรเลข' },
+        { value: '113', code: 'D4', text: 'D4 - ค่าไฟฟ้า' },
+        { value: '116', code: 'D5', text: 'D5 - ค่าบริการโทรคมนาคม (Internet)' }
+      ]
     }
   ],
   '2.1 บินสาธาฯ': [
@@ -404,8 +413,20 @@ function setPlan(el) {
   updateTheme(currentPlan);
   updateCategoryDropdowns(currentPlan);
   renderTable();
-  // Auto-jump to table view
-  setView('table', document.getElementById('nav-table'));
+  // อยู่หน้าเดิม แล้ววาดข้อมูลของแผนที่เลือกใหม่ (ไม่กระโดดไปหน้าตารางทั้งหมด)
+  const activeView = document.querySelector('.app-view.active');
+  const v = activeView ? activeView.id.replace('view-', '') : '';
+  if (!v || v === 'table') {
+    setView('table', document.getElementById('nav-table'));
+  } else if (v === 'spending-plan') {
+    renderSpendingPlan();
+  } else if (v === 'pending-plan') {
+    if (typeof renderPendingPlanView === 'function') renderPendingPlanView();
+  } else if (v === 'summary') {
+    renderSummaryReport();
+  } else if (v === 'settings') {
+    renderSettings();
+  }
 }
 
 function populateReservePlanSelect() {
@@ -485,12 +506,9 @@ function updateCategoryDropdowns(plan) {
   if (!allSelects || !allSelects.length) return;
 
   const allCats = [];
+  // ใช้รายการหมวดที่มีรหัส (A/B/C/D) ชุดเดียว — ไม่ใส่หมวด "(ระบุ)" ที่ซ้ำกันอีกชุด
   if (typeof PLAN_CATEGORIES !== 'undefined' && PLAN_CATEGORIES['default']) {
     allCats.push(...PLAN_CATEGORIES['default']);
-  }
-  if (typeof FIXED_CATEGORIES !== 'undefined') {
-    if (FIXED_CATEGORIES['ตอบแทน ใช้สอย วัสดุ']) allCats.push(...FIXED_CATEGORIES['ตอบแทน ใช้สอย วัสดุ']);
-    if (FIXED_CATEGORIES['สาธารณูปโภค']) allCats.push(...FIXED_CATEGORIES['สาธารณูปโภค']);
   }
   if (cache && cache.customCategories) {
     if (cache.customCategories['งบลงทุน']) {
@@ -638,14 +656,13 @@ function updateAdminUI() {
   const currentViewActive = document.querySelector('.app-view.active');
   if (!isAdmin && currentViewActive) {
     const currentViewId = currentViewActive.id.replace('view-', '');
-    if (['table', 'pending-plan', 'spending-plan', 'reserve-deduct', 'settings', 'gf'].includes(currentViewId)) {
-      document.querySelectorAll('.app-view').forEach(av => av.classList.remove('active'));
-      const docView = document.getElementById('view-doc-tracking');
-      if (docView) docView.classList.add('active');
-
-      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-      const docNav = document.getElementById('nav-doc-tracking');
-      if (docNav) docNav.classList.add('active');
+    if (['table', 'pending-plan', 'spending-plan', 'reserve-deduct', 'settings', 'gf', 'foreign'].includes(currentViewId)) {
+      // ผู้ที่ไม่ได้ login: เปิดหน้าระบบบริหารสัญญาแทน
+      const contractNav = document.getElementById('nav-contracts');
+      if (contractNav) {
+        setView('contracts', contractNav);
+        if (window.contract_init) contract_init();
+      }
     }
   }
 }
@@ -714,7 +731,7 @@ function logoutAdmin() {
 function setView(v, el) {
   if (!el) return;
 
-  const adminOnlyViews = ['table', 'spending-plan', 'reserve-deduct', 'settings', 'gf', 'stamp-online'];
+  const adminOnlyViews = ['table', 'spending-plan', 'reserve-deduct', 'settings', 'gf', 'stamp-online', 'foreign'];
   if (!isAdmin && adminOnlyViews.includes(v)) {
     return;
   }
