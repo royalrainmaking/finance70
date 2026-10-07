@@ -1249,8 +1249,39 @@ const SUMMARY_SHEETS = [
   { name: 'สรุป บูร', match: 'ฝนหลวง', foreign: false },
   { name: 'สรุป ยุทธ', match: 'ด้านการบิน', foreign: true },   // รายจ่ายต่างประเทศอยู่แผนยุทธ
   { name: 'สรุป ฝุ่น', match: 'ฝุ่น', foreign: false },
-  { name: 'สรุป ลูกเห็บ', match: 'ลูกเห็บ', foreign: false }
+  { name: 'สรุป ลูกเห็บ', match: 'ลูกเห็บ', foreign: false },
+  { name: 'สรุป จัดหาอากาศยาน', match: 'จัดหาอากาศยาน', foreign: false, create: true }
 ];
+
+// สร้างชีต "สรุป จัดหาอากาศยาน" (ถ้ายังไม่มี) — ใช้หัวตารางและรูปแบบจากชีต "สรุป บูร"
+function summary_createAircraftSheet_(ss, name) {
+  let sh = ss.getSheetByName(name);
+  if (sh) return sh;
+  const tpl = ss.getSheetByName('สรุป บูร');
+  sh = ss.insertSheet(name);
+  if (tpl) {
+    tpl.getRange('A1:T8').copyTo(sh.getRange('A1'));                 // หัวรายงาน + หัวตาราง (รวมรูปแบบ)
+    for (let c = 1; c <= 20; c++) sh.setColumnWidth(c, tpl.getColumnWidth(c));
+    tpl.getRange('A9:T9').copyTo(sh.getRange('A9:T11'), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  }
+  sh.getRange('A4').setValue('แผนงาน จัดหาอากาศยาน');
+  sh.getRange('A5').setValue('กิจกรรม จัดหาอากาศยาน');
+  sh.getRange('A9:B11').setValues([['', ' รวมทั้งสิ้น'], ['3', ' งบลงทุน'], ['5', 'งบรายจ่ายอื่น']]);
+  // แถวรวมทั้งสิ้น = งบลงทุน + งบรายจ่ายอื่น
+  ['D', 'G', 'I', 'J', 'K', 'L', 'M', 'N', 'Q', 'S', 'T'].forEach(c => sh.getRange(c + '9').setFormula('=' + c + '10+' + c + '11'));
+
+  // รายละเอียดสัญญาของแผนนี้ (ดึงจากชีต สัญญา อัตโนมัติ)
+  const L = k => summary_colLetter_(CONTRACT_KEYS.indexOf(k) + 1);
+  const cols = ['id', 'name', 'contractor', 'contractNo', 'allocated', 'budget', 'po', 'disbursed', 'gfDate'];
+  sh.getRange('A13').setValue('รายละเอียดสัญญา — แผนจัดหาอากาศยาน').setFontWeight('bold');
+  sh.getRange(14, 1, 1, cols.length).setValues([['ID', 'ชื่อโครงการ', 'ผู้รับจ้าง', 'เลขที่สัญญา', 'งบที่ได้รับจัดสรร', 'วงเงินโครงการ', 'PO', 'เบิกจ่าย', 'วันที่ GF']])
+    .setFontWeight('bold').setBackground('#1bb295').setFontColor('white');
+  const q = "=IFERROR(QUERY('" + CONTRACT_SHEET_NAME + "'!A2:" + L('updatedAt') + ",\"select " + cols.map(L).join(', ') +
+            " where " + L('plan') + " contains 'จัดหาอากาศยาน'\", 0), \"ยังไม่มีสัญญาในแผนนี้\")";
+  sh.getRange('A15').setFormula(q);
+  sh.getRange('E15:H').setNumberFormat('#,##0.00');
+  return sh;
+}
 
 function summary_colLetter_(n) { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
 
@@ -1300,7 +1331,7 @@ function linkSummarySheets() {
   foreign_getSheet();
   const log = [];
   SUMMARY_SHEETS.forEach(s => {
-    const sheet = ss.getSheetByName(s.name);
+    const sheet = s.create ? summary_createAircraftSheet_(ss, s.name) : ss.getSheetByName(s.name);
     if (!sheet) { log.push('ไม่พบชีต ' + s.name); return; }
     [['งบลงทุน', false], ['งบรายจ่ายอื่น', s.foreign]].forEach(([label, withForeign]) => {
       const row = summary_findRow_(sheet, label);
@@ -1312,4 +1343,89 @@ function linkSummarySheets() {
   });
   Logger.log(log.join('\n'));
   return { success: true, log: log };
+}
+
+// ==========================================
+// ปรับชีต "สรุป จัดหาอากาศยาน" (ที่คัดลอกมาจากชีตสรุปแผนอื่น) ให้เป็นกิจกรรมจัดหาอากาศยาน + ธีมสีฟ้า
+// วิธีใช้: เลือกฟังก์ชัน setupAircraftSummarySheet แล้วกด Run (รันซ้ำได้)
+//   1) หัวรายงาน: แผนงาน/กิจกรรม = จัดหาอากาศยาน
+//   2) ล้างแถวที่ไม่เกี่ยว (ค่าตอบแทน/ใช้สอย/วัสดุ/สาธารณูปโภค) เหลือเฉพาะ งบลงทุน / งบรายจ่ายอื่น / รวมทั้งสิ้น
+//   3) เปลี่ยนสีพื้น/สีตัวอักษรทั้งชีตเป็นโทนสีฟ้า และสีแท็บชีต
+//   4) ลิงก์แถว งบลงทุน / งบรายจ่ายอื่น กับชีตสัญญา (แผนจัดหาอากาศยาน)
+// ==========================================
+const AIRCRAFT_SUMMARY_SHEET = 'สรุป จัดหาอากาศยาน';
+
+function setupAircraftSummarySheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sh = ss.getSheetByName(AIRCRAFT_SUMMARY_SHEET) || summary_createAircraftSheet_(ss, AIRCRAFT_SUMMARY_SHEET);
+  const log = [];
+
+  // 1) หัวรายงาน
+  const top = sh.getRange(1, 1, 8, 1).getDisplayValues();
+  for (let i = 0; i < top.length; i++) {
+    const t = String(top[i][0]);
+    if (t.indexOf('แผนงาน') === 0) sh.getRange(i + 1, 1).setValue('แผนงาน จัดหาอากาศยาน');
+    if (t.indexOf('กิจกรรม') === 0) sh.getRange(i + 1, 1).setValue('กิจกรรม จัดหาอากาศยาน');
+  }
+  log.push('หัวรายงาน: แผนงาน/กิจกรรม = จัดหาอากาศยาน');
+
+  // 2) ล้างตัวเลข/สูตรในแถวที่ไม่เกี่ยวกับแผนนี้ (ค่าตอบแทน ใช้สอย วัสดุ สาธารณูปโภค งบบุคลากร ฯลฯ)
+  //    เหลือเฉพาะ งบลงทุน / งบรายจ่ายอื่น และแถวรวมทั้งสิ้น
+  const rTotal = summary_findRow_(sh, 'รวมทั้งสิ้น');
+  const rInv = summary_findRow_(sh, 'งบลงทุน');
+  const rOth = summary_findRow_(sh, 'งบรายจ่ายอื่น');
+  if (rTotal > 0) {
+    const last = sh.getLastRow();
+    let cleared = 0;
+    for (let r = rTotal + 1; r <= last; r++) {
+      if (r === rInv || r === rOth) continue;
+      sh.getRange(r, 3, 1, 18).clearContent();   // คอลัมน์ C:T (คงชื่อรายการและรูปแบบไว้)
+      cleared++;
+    }
+    // แถวรวมทั้งสิ้น = งบลงทุน + งบรายจ่ายอื่น
+    ['C', 'E', 'F', 'H', 'O', 'P', 'R'].forEach(c => sh.getRange(c + rTotal).clearContent());
+    ['D', 'G', 'I', 'J', 'K', 'L', 'M', 'N', 'Q', 'S', 'T'].forEach(c => {
+      const parts = [rInv, rOth].filter(x => x > 0).map(x => c + x);
+      sh.getRange(c + rTotal).setFormula(parts.length ? '=' + parts.join('+') : '=0');
+    });
+    log.push('ล้างแถวที่ไม่เกี่ยว ' + cleared + ' แถว / แถวรวมทั้งสิ้น = งบลงทุน + งบรายจ่ายอื่น');
+  }
+
+  // 3) ธีมสีฟ้า
+  summary_applyBlueTheme_(sh);
+  sh.setTabColor('#2563eb');
+  log.push('เปลี่ยนเป็นธีมสีฟ้าแล้ว');
+
+  // 4) ลิงก์แถวงบลงทุน / งบรายจ่ายอื่น
+  contract_getSheet();
+  [['งบลงทุน', false], ['งบรายจ่ายอื่น', false]].forEach(([label, withForeign]) => {
+    const row = summary_findRow_(sh, label);
+    if (row < 0) { log.push('ไม่พบแถว ' + label); return; }
+    const f = summary_formulas_(AIRCRAFT_PLAN, label, withForeign, row);
+    Object.keys(f).forEach(col => sh.getRange(col + row).setFormula(f[col]));
+    log.push('ลิงก์แถว ' + label + ' (แถว ' + row + ')');
+  });
+
+  Logger.log(log.join('\n'));
+  return { success: true, log: log };
+}
+
+// เปลี่ยนสีพื้นและสีตัวอักษรที่เป็น "สี" (ไม่ใช่ ขาว/เทา/ดำ) ให้เป็นโทนฟ้า โดยคงความเข้ม-อ่อนเดิม
+function summary_applyBlueTheme_(sh) {
+  const rows = Math.max(sh.getLastRow(), 1), cols = Math.max(sh.getLastColumn(), 1);
+  const range = sh.getRange(1, 1, rows, cols);
+  const parse = h => { h = String(h || '').replace('#', ''); if (h.length !== 6) return null; return [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)); };
+  const isNeutral = c => Math.max.apply(null, c) - Math.min.apply(null, c) < 18;   // ขาว/เทา/ดำ
+  const lum = c => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+  const bgBlue = l => l < 0.35 ? '#1e3a8a' : l < 0.5 ? '#1d4ed8' : l < 0.62 ? '#2563eb' : l < 0.75 ? '#60a5fa' : l < 0.86 ? '#bfdbfe' : l < 0.93 ? '#dbeafe' : '#eff6ff';
+  const fgBlue = l => l < 0.3 ? '#1e3a8a' : l < 0.55 ? '#1d4ed8' : '#2563eb';
+
+  const bgs = range.getBackgrounds().map(r => r.map(h => {
+    const c = parse(h); if (!c || isNeutral(c)) return h; return bgBlue(lum(c));
+  }));
+  range.setBackgrounds(bgs);
+  const fgs = range.getFontColors().map(r => r.map(h => {
+    const c = parse(h); if (!c || isNeutral(c)) return h; return fgBlue(lum(c));
+  }));
+  range.setFontColors(fgs);
 }
