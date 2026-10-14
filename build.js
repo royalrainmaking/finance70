@@ -76,6 +76,18 @@ async function fetchProjects() {
                 p.notes = p.notes || {};
                 p.dates.inspection = (p.notes && p.notes.date_inspection) ? p.notes.date_inspection : '';
                 p.dates.payment = (p.notes && p.notes.date_payment) ? p.notes.date_payment : '';
+                if ((!p.notes.disbursements || !p.notes.disbursements.length) && (p.disbursed > 0 || (p.notes && (p.notes.gfRefNo || p.notes.gfDate)))) {
+                    p.notes.disbursements = [{
+                        id: '1',
+                        round: 'งวดที่ 1',
+                        amount: Number(p.disbursed) || 0,
+                        gfRefNo: (p.notes && p.notes.gfRefNo) || '',
+                        gfDate: (p.notes && p.notes.gfDate) || ''
+                    }];
+                } else if (p.notes && Array.isArray(p.notes.disbursements) && p.notes.disbursements.length > 0) {
+                    const disbSum = p.notes.disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+                    if (disbSum > 0) p.disbursed = disbSum;
+                }
                 return p;
             });
             renderDashboard();
@@ -132,6 +144,11 @@ window.deleteCurrentProject = deleteCurrentProject;
 window.openCommitteeModal = openCommitteeModal;
 window.updateSingleStep = updateSingleStep;
 window.printProjectSummary = printProjectSummary;
+window.addDisbursementRow = addDisbursementRow;
+window.removeDisbursementRow = removeDisbursementRow;
+window.calcDisbursementTotal = calcDisbursementTotal;
+window.syncLegacyGfFields = syncLegacyGfFields;
+window.contract_backToMainHub = contract_backToMainHub;
 `;
 
 fs.writeFileSync('contracts.js', newJs);

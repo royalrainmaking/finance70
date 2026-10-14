@@ -223,7 +223,7 @@ body {
 /* Dashboard Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 15px;
     margin-bottom: 30px;
 }
@@ -356,19 +356,22 @@ body {
 
 .project-table {
     width: 100%;
+    min-width: 1080px;
     border-collapse: collapse;
 }
 
 .project-table th {
     text-align: left;
-    padding: 15px;
+    padding: 13px 14px;
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 13px;
     border-bottom: 2px solid var(--border-color);
+    white-space: nowrap;
 }
 
 .project-table td {
-    padding: 15px;
+    padding: 13px 14px;
     border-bottom: 1px solid var(--border-color);
     vertical-align: top;
 }
@@ -985,6 +988,10 @@ body {
     grid-template-columns: 1fr 1fr 1fr;
 }
 
+.four-cols {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
 .number-badge {
     display: inline-flex;
     align-items: center;
@@ -1037,6 +1044,12 @@ body {
 }
 
 /* Responsive */
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
 @media (max-width: 1024px) {
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -1044,6 +1057,10 @@ body {
 
     .form-layout-split {
         flex-direction: column;
+    }
+
+    .four-cols {
+        grid-template-columns: 1fr 1fr;
     }
 }
 
@@ -1105,6 +1122,14 @@ body {
     }
 
     /* Responsive Table to Cards */
+    .project-table {
+        min-width: 0 !important;
+    }
+
+    .four-cols {
+        grid-template-columns: 1fr;
+    }
+
     .project-table thead {
         display: none;
         /* Hide headers */
@@ -1384,6 +1409,29 @@ body {
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
+.cm-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.cm-back-btn:hover {
+    background: rgba(255, 255, 255, 0.28);
+    border-color: #fff;
+    transform: translateY(-2px);
+}
+
 @media (max-width: 768px) {
     .cm-add-btn {
         width: 100%;
@@ -1415,4 +1463,81 @@ body {
 .stats-grid .stat-value {
     font-size: 22px;
     margin-bottom: 0;
+}
+
+/* ===== ส่วนจัดการงวดการเบิกจ่าย (3) ===== */
+.disbursement-box {
+    margin-top: 18px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.disbursement-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+
+.disbursement-table th {
+    background: #e6f4f1;
+    color: #1e564d;
+    font-weight: 600;
+    padding: 9px 10px;
+    font-size: 12.5px;
+    text-align: left;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.disbursement-table td {
+    padding: 6px 8px;
+    vertical-align: middle;
+}
+
+.disb-input {
+    width: 100%;
+    padding: 6px 9px;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: 'Sarabun', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.disb-input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 2px rgba(27, 178, 149, 0.15);
+    outline: none;
+}
+
+.disb-input.amt {
+    font-weight: 600;
+    color: #0f766e;
+    text-align: right;
+}
+
+.disb-del-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.disb-del-btn:hover {
+    background: #fee2e2;
+    color: #dc2626;
 }

@@ -1214,13 +1214,43 @@ function gf_updateExtra(data) {
     if (data && data.contracts && data.contracts.length) {
       const sh = contract_getSheet();
       const col = CONTRACT_KEYS.indexOf('gfDate') + 1;
+      const colNotes = CONTRACT_KEYS.indexOf('notes_json') + 1;
       const last = sh.getLastRow();
       const ids = last >= 2 ? sh.getRange(2, 1, last - 1, 1).getValues().map(r => Number(r[0])) : [];
       data.contracts.forEach(u => {
         const i = ids.indexOf(Number(u.id));
         if (i < 0) return;
         const cell = sh.getRange(i + 2, col);
-        if (cell.getValue() === '' || cell.getValue() === null) { cell.setValue(u.gfDate); contracts++; } else skipped++;
+        let updated = false;
+        if (cell.getValue() === '' || cell.getValue() === null) { cell.setValue(u.gfDate); contracts++; updated = true; }
+        if (colNotes > 0) {
+          try {
+            const notesCell = sh.getRange(i + 2, colNotes);
+            const raw = String(notesCell.getValue() || '');
+            if (raw && raw.includes('disbursements')) {
+              const notesObj = JSON.parse(raw);
+              if (Array.isArray(notesObj.disbursements)) {
+                let changed = false;
+                notesObj.disbursements.forEach(d => {
+                  if (d.gfRefNo && (!d.gfDate || String(d.gfDate).trim() === '')) {
+                    if (u.refNo && String(d.gfRefNo).trim() === String(u.refNo).trim()) {
+                      d.gfDate = u.gfDate;
+                      changed = true;
+                    } else if (!u.refNo) {
+                      d.gfDate = u.gfDate;
+                      changed = true;
+                    }
+                  }
+                });
+                if (changed) {
+                  notesCell.setValue(JSON.stringify(notesObj));
+                  if (!updated) { contracts++; updated = true; }
+                }
+              }
+            }
+          } catch(e) {}
+        }
+        if (!updated) skipped++;
       });
     }
     if (data && data.foreign && data.foreign.length) {

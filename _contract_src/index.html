@@ -84,9 +84,14 @@
                         <div class="cm-hero-title"><i class="fa-solid fa-file-signature"></i> ระบบบริหารสัญญา</div>
                         <div class="cm-hero-sub">งบลงทุน · งบรายจ่ายอื่น · จัดหาอากาศยาน</div>
                     </div>
-                    <button type="button" class="cm-add-btn" onclick="openModal()">
-                        <i class="fa-solid fa-plus"></i> เพิ่มโครงการใหม่
-                    </button>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="cm-back-btn" onclick="contract_backToMainHub()" title="กลับไปยังหน้ารวมงบประมาณระบบหลัก">
+                            <i class="fa-solid fa-house"></i> กลับหน้ารวมระบบหลัก
+                        </button>
+                        <button type="button" class="cm-add-btn" onclick="openModal()">
+                            <i class="fa-solid fa-plus"></i> เพิ่มโครงการใหม่
+                        </button>
+                    </div>
                 </div>
 
                 <div
@@ -153,6 +158,11 @@
                         <div class="stat-title">เบิกจ่ายแล้ว (บาท)</div>
                         <div class="stat-value" id="stat-total-disbursed">0.00</div>
                     </div>
+                    <div class="stat-card orange">
+                        <div class="stat-icon"><i class="fa-solid fa-wallet"></i></div>
+                        <div class="stat-title">PO คงเหลือ (บาท)</div>
+                        <div class="stat-value" id="stat-total-po-remaining">0.00</div>
+                    </div>
                 </div>
 
                 <div class="content-box">
@@ -173,14 +183,16 @@
                         <table class="project-table">
                             <thead>
                                 <tr>
-                                    <th>ลำดับ</th>
+                                    <th style="width: 45px; text-align: center;">ลำดับ</th>
                                     <th>ชื่อโครงการ</th>
                                     <th>ผู้รับจ้าง/ผู้ควบคุมงาน</th>
                                     <th>สถานะปัจจุบัน</th>
-                                    <th>PO / ก่อหนี้</th>
-                                    <th>กำหนดส่งมอบ</th>
-                                    <th>ความคืบหน้า</th>
-                                    <th style="min-width: 80px;">จัดการ</th>
+                                    <th style="text-align: right;">PO / ก่อหนี้</th>
+                                    <th style="text-align: right;">เบิกจ่ายแล้ว</th>
+                                    <th style="text-align: right;">PO คงเหลือ</th>
+                                    <th style="text-align: center;">กำหนดส่งมอบ</th>
+                                    <th style="text-align: center;">ความคืบหน้า</th>
+                                    <th style="min-width: 80px; text-align: center;">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="project-table-body">
@@ -193,13 +205,37 @@
 
             <!-- View: Report/Details -->
             <div class="view-section" id="view-report">
+                <div class="cm-hero" style="margin-bottom: 20px;">
+                    <div class="cm-hero-text">
+                        <div class="cm-hero-title">
+                            <i class="fa-solid fa-file-lines"></i> รายละเอียดโครงการ / แผนการส่งมอบ
+                        </div>
+                        <div class="cm-hero-sub">ระบบบริหารสัญญา · แผนการดำเนินงานและการส่งมอบ</div>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="cm-back-btn" onclick="window.contract_switchView('dashboard')" style="background:#fff; color:#138a74; font-weight:700;">
+                            <i class="fa-solid fa-arrow-left"></i> ย้อนกลับไปหน้ารวมสัญญา
+                        </button>
+                        <button type="button" class="cm-back-btn" onclick="contract_backToMainHub()" title="กลับไปยังหน้ารวมงบประมาณระบบหลัก">
+                            <i class="fa-solid fa-house"></i> กลับหน้ารวมระบบหลัก
+                        </button>
+                    </div>
+                </div>
+
                 <div class="content-box report-box">
                     <div class="box-header report-header">
-                        <h2 class="box-title"><i class="fa-solid fa-file-lines"></i>
-                            รายงานแผนการดำเนินงานและการใช้จ่ายงบลงทุน<br><small
-                                class="sub-title">ประจำปีงบประมาณ</small></h2>
-                        <button class="btn btn-teal" onclick="openModal()"><i class="fa-solid fa-plus"></i>
-                            เพิ่มโครงการใหม่</button>
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <button class="btn btn-outline" onclick="window.contract_switchView('dashboard')" style="display: inline-flex; align-items: center; gap: 7px; font-weight: 600; padding: 8px 14px; border-radius: 6px; background: white; color: #1e564d; border: 1px solid #cbd5e1; cursor: pointer; transition: 0.2s;" title="กลับไปตารางรายการโครงการทั้งหมด">
+                                <i class="fa-solid fa-arrow-left"></i> ย้อนกลับหน้ารวมสัญญา
+                            </button>
+                            <h2 class="box-title" style="margin: 0;"><i class="fa-solid fa-file-lines"></i>
+                                รายงานแผนการดำเนินงานและการใช้จ่ายงบลงทุน<br><small
+                                    class="sub-title">ประจำปีงบประมาณ</small></h2>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button class="btn btn-teal" onclick="openModal()"><i class="fa-solid fa-plus"></i>
+                                เพิ่มโครงการใหม่</button>
+                        </div>
                     </div>
 
                     <div class="report-details-card" id="report-content" style="display: none;">
@@ -212,6 +248,8 @@
                                     -</span>
                             </div>
                             <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-outline" onclick="window.contract_switchView('dashboard')" style="font-weight: 600; color: #1e564d;"><i
+                                        class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button>
                                 <button class="btn btn-outline" onclick="openEditModal()"><i
                                         class="fa-solid fa-pen"></i> อัปเดตข้อมูล</button>
                                 <button class="btn btn-outline" style="color: #e74c3c; border-color: #f1a9a0;"
@@ -283,7 +321,26 @@
                                 <div class="budget-label">เบิกจ่าย (บาท)</div>
                                 <div class="budget-value text-teal" id="r-disbursed">0.00</div>
                             </div>
-                            <!-- Removed Net Balance -->
+                            <div class="budget-item highlight">
+                                <div class="budget-label">PO คงเหลือ (บาท)</div>
+                                <div class="budget-value text-orange" id="r-po-remaining">0.00</div>
+                            </div>
+                        </div>
+
+                        <!-- รายละเอียดการเบิกจ่ายรายงวด -->
+                        <div id="r-disbursement-wrap" style="margin-top: 15px; margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                                <h4 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #1e564d; display: flex; align-items: center; gap: 7px;">
+                                    <i class="fa-solid fa-receipt" style="color: var(--teal);"></i>
+                                    รายละเอียดการเบิกจ่าย (<span id="r-disb-count">0</span> งวด)
+                                </h4>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    ยอดเบิกจ่ายรวม: <strong class="text-teal" id="r-disb-total" style="font-size: 13px;">฿0.00</strong>
+                                </div>
+                            </div>
+                            <div id="r-disbursement-list" style="overflow-x: auto;">
+                                <!-- Rendered via JS -->
+                            </div>
                         </div>
 
                         <div class="status-tracker">
@@ -365,6 +422,11 @@
                 <div id="no-report-selection" style="padding: 40px; text-align: center; color: var(--text-muted);">
                     <i class="fa-regular fa-folder-open" style="font-size: 40px; margin-bottom: 15px;"></i>
                     <p>คลิกเลือกโครงการจากหน้ารายการเพื่อดูรายละเอียด</p>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-teal" onclick="window.contract_switchView('dashboard')">
+                            <i class="fa-solid fa-arrow-left"></i> กลับไปหน้ารวมสัญญา
+                        </button>
+                    </div>
                 </div>
             </div>
     </div>
@@ -448,28 +510,70 @@
                                 <input type="number" step="0.01" id="p-allocated" value="0">
                             </div>
                         </div>
-                        <div class="form-row three-cols mt-3">
+                        <div class="form-row four-cols mt-3">
                             <div class="form-group">
                                 <label>วงเงินโครงการ (1) <small style="font-weight:400;color:#888;">ใช้เป็นเงินกันจนกว่าจะมี PO</small></label>
                                 <input type="number" step="0.01" id="p-budget" value="0">
                             </div>
                             <div class="form-group">
                                 <label>PO (2)</label>
-                                <input type="number" step="0.01" id="p-po" value="0">
+                                <input type="number" step="0.01" id="p-po" value="0" oninput="calcDisbursementTotal()">
                             </div>
                             <div class="form-group">
-                                <label>เบิกจ่าย (3)</label>
-                                <input type="number" step="0.01" id="p-disbursed" value="0" class="text-teal">
+                                <label>เบิกจ่ายรวม (3) <small style="font-weight:600;color:#0d9488;">(รวมจากทุกงวด)</small></label>
+                                <input type="number" step="0.01" id="p-disbursed" value="0" class="text-teal" style="background:#f0fdfa; font-weight:700; cursor:default;" readonly title="คำนวณรวมจากรายการงวดเบิกจ่ายด้านล่าง">
+                            </div>
+                            <div class="form-group">
+                                <label>PO คงเหลือ <small style="font-weight:600;color:#e67e3a;">(PO - เบิกจ่าย)</small></label>
+                                <input type="text" id="p-po-remaining" value="฿0.00" class="text-orange" style="background:#fff7ed; font-weight:700; cursor:default;" readonly title="คำนวณจาก PO หักยอดเบิกจ่าย">
                             </div>
                         </div>
-                        <div class="form-row three-cols mt-3">
-                            <div class="form-group">
-                                <label>เลขตัดยอด</label>
-                                <input type="text" id="p-gfref" placeholder="เช่น 69-05-00033">
+
+                        <!-- ซ่อนเพื่อรองรับความเข้ากันได้ย้อนหลัง -->
+                        <input type="hidden" id="p-gfref" value="">
+                        <input type="hidden" id="p-gfdate" value="">
+
+                        <!-- รายการเบิกจ่ายหลายงวด (3) -->
+                        <div class="disbursement-box">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                                <div>
+                                    <div style="font-size: 14px; font-weight: 700; color: #1e564d; display: flex; align-items: center; gap: 7px;">
+                                        <i class="fa-solid fa-receipt" style="color: var(--teal);"></i>
+                                        งวดการเบิกจ่าย (3)
+                                    </div>
+                                    <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                                        เพิ่มได้หลายงวด ระบบจะนำยอดเบิกจ่ายไปรวมในช่อง <b>เบิกจ่าย (3)</b> ให้อัตโนมัติ
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-teal btn-sm" onclick="addDisbursementRow()" style="padding: 5px 12px; font-size: 12px; border-radius: 6px;">
+                                    <i class="fa-solid fa-plus"></i> เพิ่มงวดเบิกจ่าย
+                                </button>
                             </div>
-                            <div class="form-group">
-                                <label>วันที่ GF <small style="font-weight:400;color:#888;">ระบบอัปเดต GF เติมให้อัตโนมัติ</small></label>
-                                <input type="text" id="p-gfdate" placeholder="เช่น 15/01/2569">
+
+                            <div style="overflow-x: auto;">
+                                <table class="disbursement-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 130px;">งวดที่</th>
+                                            <th style="width: 170px;">ยอดเบิกจ่าย (บาท)</th>
+                                            <th style="min-width: 140px;">เลขตัดยอด</th>
+                                            <th style="min-width: 140px;">วันที่ GF</th>
+                                            <th style="width: 44px; text-align: center;">ลบ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="disbursement-tbody">
+                                        <!-- Dynamic installment rows -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style="background: #f8fafc; font-weight: 600; border-top: 2px solid #e2e8f0; font-size: 12.5px;">
+                                            <td style="padding: 9px 10px; color: #475569;" id="disb-summary-count">รวม 0 งวด</td>
+                                            <td style="padding: 9px 10px; color: #0d9488; font-size: 13.5px;" id="disb-summary-total">฿0.00</td>
+                                            <td colspan="3" style="padding: 9px 10px; color: #94a3b8; font-size: 11px; font-weight: normal;">
+                                                * ยอดรวมจะนำไปบันทึกในช่อง "เบิกจ่าย (3)" ของโครงการ
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
                         </div>
                     </div>

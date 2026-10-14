@@ -11,9 +11,14 @@ window.contract_init = function() {
                         <div class="cm-hero-title"><i class="fa-solid fa-file-signature"></i> ระบบบริหารสัญญา</div>
                         <div class="cm-hero-sub">งบลงทุน · งบรายจ่ายอื่น · จัดหาอากาศยาน</div>
                     </div>
-                    <button type="button" class="cm-add-btn" onclick="openModal()">
-                        <i class="fa-solid fa-plus"></i> เพิ่มโครงการใหม่
-                    </button>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="cm-back-btn" onclick="contract_backToMainHub()" title="กลับไปยังหน้ารวมงบประมาณระบบหลัก">
+                            <i class="fa-solid fa-house"></i> กลับหน้ารวมระบบหลัก
+                        </button>
+                        <button type="button" class="cm-add-btn" onclick="openModal()">
+                            <i class="fa-solid fa-plus"></i> เพิ่มโครงการใหม่
+                        </button>
+                    </div>
                 </div>
 
                 <div
@@ -80,6 +85,11 @@ window.contract_init = function() {
                         <div class="stat-title">เบิกจ่ายแล้ว (บาท)</div>
                         <div class="stat-value" id="stat-total-disbursed">0.00</div>
                     </div>
+                    <div class="stat-card orange">
+                        <div class="stat-icon"><i class="fa-solid fa-wallet"></i></div>
+                        <div class="stat-title">PO คงเหลือ (บาท)</div>
+                        <div class="stat-value" id="stat-total-po-remaining">0.00</div>
+                    </div>
                 </div>
 
                 <div class="content-box">
@@ -100,14 +110,16 @@ window.contract_init = function() {
                         <table class="project-table">
                             <thead>
                                 <tr>
-                                    <th>ลำดับ</th>
+                                    <th style="width: 45px; text-align: center;">ลำดับ</th>
                                     <th>ชื่อโครงการ</th>
                                     <th>ผู้รับจ้าง/ผู้ควบคุมงาน</th>
                                     <th>สถานะปัจจุบัน</th>
-                                    <th>PO / ก่อหนี้</th>
-                                    <th>กำหนดส่งมอบ</th>
-                                    <th>ความคืบหน้า</th>
-                                    <th style="min-width: 80px;">จัดการ</th>
+                                    <th style="text-align: right;">PO / ก่อหนี้</th>
+                                    <th style="text-align: right;">เบิกจ่ายแล้ว</th>
+                                    <th style="text-align: right;">PO คงเหลือ</th>
+                                    <th style="text-align: center;">กำหนดส่งมอบ</th>
+                                    <th style="text-align: center;">ความคืบหน้า</th>
+                                    <th style="min-width: 80px; text-align: center;">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="project-table-body">
@@ -120,13 +132,37 @@ window.contract_init = function() {
 
             <!-- View: Report/Details -->
             <div class="view-section" id="view-report">
+                <div class="cm-hero" style="margin-bottom: 20px;">
+                    <div class="cm-hero-text">
+                        <div class="cm-hero-title">
+                            <i class="fa-solid fa-file-lines"></i> รายละเอียดโครงการ / แผนการส่งมอบ
+                        </div>
+                        <div class="cm-hero-sub">ระบบบริหารสัญญา · แผนการดำเนินงานและการส่งมอบ</div>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="cm-back-btn" onclick="window.contract_switchView('dashboard')" style="background:#fff; color:#138a74; font-weight:700;">
+                            <i class="fa-solid fa-arrow-left"></i> ย้อนกลับไปหน้ารวมสัญญา
+                        </button>
+                        <button type="button" class="cm-back-btn" onclick="contract_backToMainHub()" title="กลับไปยังหน้ารวมงบประมาณระบบหลัก">
+                            <i class="fa-solid fa-house"></i> กลับหน้ารวมระบบหลัก
+                        </button>
+                    </div>
+                </div>
+
                 <div class="content-box report-box">
                     <div class="box-header report-header">
-                        <h2 class="box-title"><i class="fa-solid fa-file-lines"></i>
-                            รายงานแผนการดำเนินงานและการใช้จ่ายงบลงทุน<br><small
-                                class="sub-title">ประจำปีงบประมาณ</small></h2>
-                        <button class="btn btn-teal" onclick="openModal()"><i class="fa-solid fa-plus"></i>
-                            เพิ่มโครงการใหม่</button>
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <button class="btn btn-outline" onclick="window.contract_switchView('dashboard')" style="display: inline-flex; align-items: center; gap: 7px; font-weight: 600; padding: 8px 14px; border-radius: 6px; background: white; color: #1e564d; border: 1px solid #cbd5e1; cursor: pointer; transition: 0.2s;" title="กลับไปตารางรายการโครงการทั้งหมด">
+                                <i class="fa-solid fa-arrow-left"></i> ย้อนกลับหน้ารวมสัญญา
+                            </button>
+                            <h2 class="box-title" style="margin: 0;"><i class="fa-solid fa-file-lines"></i>
+                                รายงานแผนการดำเนินงานและการใช้จ่ายงบลงทุน<br><small
+                                    class="sub-title">ประจำปีงบประมาณ</small></h2>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button class="btn btn-teal" onclick="openModal()"><i class="fa-solid fa-plus"></i>
+                                เพิ่มโครงการใหม่</button>
+                        </div>
                     </div>
 
                     <div class="report-details-card" id="report-content" style="display: none;">
@@ -139,6 +175,8 @@ window.contract_init = function() {
                                     -</span>
                             </div>
                             <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-outline" onclick="window.contract_switchView('dashboard')" style="font-weight: 600; color: #1e564d;"><i
+                                        class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button>
                                 <button class="btn btn-outline" onclick="openEditModal()"><i
                                         class="fa-solid fa-pen"></i> อัปเดตข้อมูล</button>
                                 <button class="btn btn-outline" style="color: #e74c3c; border-color: #f1a9a0;"
@@ -210,7 +248,26 @@ window.contract_init = function() {
                                 <div class="budget-label">เบิกจ่าย (บาท)</div>
                                 <div class="budget-value text-teal" id="r-disbursed">0.00</div>
                             </div>
-                            <!-- Removed Net Balance -->
+                            <div class="budget-item highlight">
+                                <div class="budget-label">PO คงเหลือ (บาท)</div>
+                                <div class="budget-value text-orange" id="r-po-remaining">0.00</div>
+                            </div>
+                        </div>
+
+                        <!-- รายละเอียดการเบิกจ่ายรายงวด -->
+                        <div id="r-disbursement-wrap" style="margin-top: 15px; margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                                <h4 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #1e564d; display: flex; align-items: center; gap: 7px;">
+                                    <i class="fa-solid fa-receipt" style="color: var(--teal);"></i>
+                                    รายละเอียดการเบิกจ่าย (<span id="r-disb-count">0</span> งวด)
+                                </h4>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    ยอดเบิกจ่ายรวม: <strong class="text-teal" id="r-disb-total" style="font-size: 13px;">฿0.00</strong>
+                                </div>
+                            </div>
+                            <div id="r-disbursement-list" style="overflow-x: auto;">
+                                <!-- Rendered via JS -->
+                            </div>
                         </div>
 
                         <div class="status-tracker">
@@ -292,6 +349,11 @@ window.contract_init = function() {
                 <div id="no-report-selection" style="padding: 40px; text-align: center; color: var(--text-muted);">
                     <i class="fa-regular fa-folder-open" style="font-size: 40px; margin-bottom: 15px;"></i>
                     <p>คลิกเลือกโครงการจากหน้ารายการเพื่อดูรายละเอียด</p>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-teal" onclick="window.contract_switchView('dashboard')">
+                            <i class="fa-solid fa-arrow-left"></i> กลับไปหน้ารวมสัญญา
+                        </button>
+                    </div>
                 </div>
             </div>
     
@@ -372,28 +434,70 @@ window.contract_init = function() {
                                 <input type="number" step="0.01" id="p-allocated" value="0">
                             </div>
                         </div>
-                        <div class="form-row three-cols mt-3">
+                        <div class="form-row four-cols mt-3">
                             <div class="form-group">
                                 <label>วงเงินโครงการ (1) <small style="font-weight:400;color:#888;">ใช้เป็นเงินกันจนกว่าจะมี PO</small></label>
                                 <input type="number" step="0.01" id="p-budget" value="0">
                             </div>
                             <div class="form-group">
                                 <label>PO (2)</label>
-                                <input type="number" step="0.01" id="p-po" value="0">
+                                <input type="number" step="0.01" id="p-po" value="0" oninput="calcDisbursementTotal()">
                             </div>
                             <div class="form-group">
-                                <label>เบิกจ่าย (3)</label>
-                                <input type="number" step="0.01" id="p-disbursed" value="0" class="text-teal">
+                                <label>เบิกจ่ายรวม (3) <small style="font-weight:600;color:#0d9488;">(รวมจากทุกงวด)</small></label>
+                                <input type="number" step="0.01" id="p-disbursed" value="0" class="text-teal" style="background:#f0fdfa; font-weight:700; cursor:default;" readonly title="คำนวณรวมจากรายการงวดเบิกจ่ายด้านล่าง">
+                            </div>
+                            <div class="form-group">
+                                <label>PO คงเหลือ <small style="font-weight:600;color:#e67e3a;">(PO - เบิกจ่าย)</small></label>
+                                <input type="text" id="p-po-remaining" value="฿0.00" class="text-orange" style="background:#fff7ed; font-weight:700; cursor:default;" readonly title="คำนวณจาก PO หักยอดเบิกจ่าย">
                             </div>
                         </div>
-                        <div class="form-row three-cols mt-3">
-                            <div class="form-group">
-                                <label>เลขตัดยอด</label>
-                                <input type="text" id="p-gfref" placeholder="เช่น 69-05-00033">
+
+                        <!-- ซ่อนเพื่อรองรับความเข้ากันได้ย้อนหลัง -->
+                        <input type="hidden" id="p-gfref" value="">
+                        <input type="hidden" id="p-gfdate" value="">
+
+                        <!-- รายการเบิกจ่ายหลายงวด (3) -->
+                        <div class="disbursement-box">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                                <div>
+                                    <div style="font-size: 14px; font-weight: 700; color: #1e564d; display: flex; align-items: center; gap: 7px;">
+                                        <i class="fa-solid fa-receipt" style="color: var(--teal);"></i>
+                                        งวดการเบิกจ่าย (3)
+                                    </div>
+                                    <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                                        เพิ่มได้หลายงวด ระบบจะนำยอดเบิกจ่ายไปรวมในช่อง <b>เบิกจ่าย (3)</b> ให้อัตโนมัติ
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-teal btn-sm" onclick="addDisbursementRow()" style="padding: 5px 12px; font-size: 12px; border-radius: 6px;">
+                                    <i class="fa-solid fa-plus"></i> เพิ่มงวดเบิกจ่าย
+                                </button>
                             </div>
-                            <div class="form-group">
-                                <label>วันที่ GF <small style="font-weight:400;color:#888;">ระบบอัปเดต GF เติมให้อัตโนมัติ</small></label>
-                                <input type="text" id="p-gfdate" placeholder="เช่น 15/01/2569">
+
+                            <div style="overflow-x: auto;">
+                                <table class="disbursement-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 130px;">งวดที่</th>
+                                            <th style="width: 170px;">ยอดเบิกจ่าย (บาท)</th>
+                                            <th style="min-width: 140px;">เลขตัดยอด</th>
+                                            <th style="min-width: 140px;">วันที่ GF</th>
+                                            <th style="width: 44px; text-align: center;">ลบ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="disbursement-tbody">
+                                        <!-- Dynamic installment rows -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style="background: #f8fafc; font-weight: 600; border-top: 2px solid #e2e8f0; font-size: 12.5px;">
+                                            <td style="padding: 9px 10px; color: #475569;" id="disb-summary-count">รวม 0 งวด</td>
+                                            <td style="padding: 9px 10px; color: #0d9488; font-size: 13.5px;" id="disb-summary-total">฿0.00</td>
+                                            <td colspan="3" style="padding: 9px 10px; color: #94a3b8; font-size: 11px; font-weight: normal;">
+                                                * ยอดรวมจะนำไปบันทึกในช่อง "เบิกจ่าย (3)" ของโครงการ
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -503,6 +607,18 @@ async function fetchProjects() {
                 p.notes = p.notes || {};
                 p.dates.inspection = (p.notes && p.notes.date_inspection) ? p.notes.date_inspection : '';
                 p.dates.payment = (p.notes && p.notes.date_payment) ? p.notes.date_payment : '';
+                if ((!p.notes.disbursements || !p.notes.disbursements.length) && (p.disbursed > 0 || (p.notes && (p.notes.gfRefNo || p.notes.gfDate)))) {
+                    p.notes.disbursements = [{
+                        id: '1',
+                        round: 'งวดที่ 1',
+                        amount: Number(p.disbursed) || 0,
+                        gfRefNo: (p.notes && p.notes.gfRefNo) || '',
+                        gfDate: (p.notes && p.notes.gfDate) || ''
+                    }];
+                } else if (p.notes && Array.isArray(p.notes.disbursements) && p.notes.disbursements.length > 0) {
+                    const disbSum = p.notes.disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+                    if (disbSum > 0) p.disbursed = disbSum;
+                }
                 return p;
             });
             renderDashboard();
@@ -676,9 +792,12 @@ function renderDashboard() {
     const filteredProjects = projects.filter(p => {
         const c_no = (p.notes && p.notes.contractNo) ? p.notes.contractNo.toLowerCase() : '';
         const search = searchTerm.toLowerCase();
+        const disbRefs = (p.notes && Array.isArray(p.notes.disbursements)) ? p.notes.disbursements.map(d => (d.gfRefNo || '').toLowerCase()).join(' ') : '';
         const matchSearch = p.name.toLowerCase().includes(search) ||
             (p.contractor && p.contractor.toLowerCase().includes(search)) ||
-            c_no.includes(search);
+            c_no.includes(search) ||
+            disbRefs.includes(search) ||
+            ((p.notes && p.notes.gfRefNo) || '').toLowerCase().includes(search);
 
         const pPlan = (p.notes && p.notes.plan) ? p.notes.plan : 'การปฏิบัติการฝนหลวง';
         const pItem = (p.notes && p.notes.itemType) ? p.notes.itemType : 'งบรายจ่ายอื่น';
@@ -694,16 +813,28 @@ function renderDashboard() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    let totalPoRemaining = 0;
     filteredProjects.forEach((p) => {
-        totalBudget += Number(p.budget);
-        totalPO += Number(p.po || 0);
-        totalDisbursed += Number(p.disbursed);
+        const poVal = Number(p.po || 0);
+        let disbVal = Number(p.disbursed || 0);
+        if (p.notes && Array.isArray(p.notes.disbursements) && p.notes.disbursements.length > 0) {
+            const sumDisb = p.notes.disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+            if (sumDisb > 0) disbVal = sumDisb;
+        }
+        const poRemainVal = poVal > 0 ? Math.max(0, poVal - disbVal) : 0;
+
+        totalBudget += Number(p.budget || 0);
+        totalPO += poVal;
+        totalDisbursed += disbVal;
+        totalPoRemaining += poRemainVal;
     });
 
     document.getElementById('stat-total-projects').innerText = filteredProjects.length;
     document.getElementById('stat-total-budget').innerText = formatCurrency(totalBudget);
     document.getElementById('stat-total-po').innerText = formatCurrency(totalPO);
     document.getElementById('stat-total-disbursed').innerText = formatCurrency(totalDisbursed);
+    const statPoRemainEl = document.getElementById('stat-total-po-remaining');
+    if (statPoRemainEl) statPoRemainEl.innerText = formatCurrency(totalPoRemaining);
 
     filteredProjects.forEach((p, index) => {
         const tr = document.createElement('tr');
@@ -711,7 +842,22 @@ function renderDashboard() {
             if (!e.target.closest('.icon-btn')) openProjectReport(p.id);
         };
 
+        const poVal = Number(p.po || 0);
+        let disbVal = Number(p.disbursed || 0);
+        if (p.notes && Array.isArray(p.notes.disbursements) && p.notes.disbursements.length > 0) {
+            const sumDisb = p.notes.disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+            if (sumDisb > 0) disbVal = sumDisb;
+        }
+        const poRemainVal = poVal > 0 ? Math.max(0, poVal - disbVal) : 0;
+
         const contractBadge = (p.notes && p.notes.contractNo) ? `<div style="margin-top:6px; font-size:12px; color:#c2185b; border: 1px solid #f48fb1; padding: 2px 6px; border-radius: 4px; display: inline-block; background-color: #fce4ec;"><i class="fa-solid fa-file-signature"></i> สัญญาเลขที่: ${p.notes.contractNo}</div>` : '';
+        const disbList = (p.notes && Array.isArray(p.notes.disbursements)) ? p.notes.disbursements.filter(d => (parseFloat(d.amount) || 0) > 0 || d.gfRefNo) : [];
+        let disbBadge = '';
+        if (disbList.length > 1) {
+            disbBadge = `<div style="margin-top:5px; font-size:11px; color:#0f766e; background:#f0fdfa; border:1px solid #99f6e4; padding:2px 7px; border-radius:4px; display:inline-flex; align-items:center; gap:4px;" title="เบิกจ่าย ${disbList.length} งวด (รวม ฿${formatCurrency(disbVal)})"><i class="fa-solid fa-receipt"></i> จ่าย ${disbList.length} งวด (฿${formatCurrency(disbVal)})</div>`;
+        } else if (disbVal > 0 && p.notes && p.notes.gfRefNo) {
+            disbBadge = `<div style="margin-top:5px; font-size:11px; color:#0369a1; background:#f0f9ff; border:1px solid #bae6fd; padding:2px 7px; border-radius:4px; display:inline-flex; align-items:center; gap:4px;" title="เลขตัดยอด: ${p.notes.gfRefNo}"><i class="fa-solid fa-receipt"></i> เลขตัดยอด: ${p.notes.gfRefNo}</div>`;
+        }
         const badgesHtml = `
             <div style="margin-top: 5px;">
                 <span class="badge outline-badge" style="font-size:10px;">${(p.notes && p.notes.plan) ? p.notes.plan : 'การปฏิบัติการฝนหลวง'}</span>
@@ -751,13 +897,14 @@ function renderDashboard() {
         if (isCompleted) tr.classList.add('row-completed');
 
         tr.innerHTML = `
-            <td data-label="ลำดับ">${index + 1}</td>
+            <td data-label="ลำดับ" style="text-align: center;">${index + 1}</td>
             <td data-label="ชื่อโครงการ">
                 <div style="display:flex; align-items:flex-start;">
                     <div style="flex:1;">
                         ${p.name.substring(0, 80) + (p.name.length > 80 ? '...' : '')}<br>
                         ${badgesHtml}
                         ${contractBadge}
+                        ${disbBadge ? '<br>' + disbBadge : ''}
                     </div>
                 </div>
             </td>
@@ -766,15 +913,20 @@ function renderDashboard() {
                 <div class="sub-text">ผู้ควบคุมงาน: ${p.supervisor || '-'}</div>
             </td>
             <td data-label="สถานะ">${getCurrentProjectStatusHTML(p)}</td>
-            <td data-label="PO / ก่อหนี้" class="text-yellow">฿${formatCurrency(p.po || 0)}</td>
-            <td data-label="กำหนดส่งมอบ" style="font-weight:600; text-align:center;">${expiryDate ? formatThaiShort(p.dates.signed) : '-'}</td>
-            <td data-label="ความคืบหน้า">
+            <td data-label="PO / ก่อหนี้" class="text-yellow" style="text-align: right; font-weight: 600; white-space: nowrap;">฿${formatCurrency(poVal)}</td>
+            <td data-label="เบิกจ่ายแล้ว" class="text-teal" style="text-align: right; font-weight: 600; white-space: nowrap;">฿${formatCurrency(disbVal)}</td>
+            <td data-label="PO คงเหลือ" style="text-align: right; font-weight: 600; white-space: nowrap; color: ${poRemainVal > 0 ? '#e67e3a' : (poVal > 0 ? '#10b981' : '#94a3b8')};">
+                ฿${formatCurrency(poRemainVal)}
+                ${poVal > 0 && poRemainVal === 0 ? '<div style="font-size:10.5px; color:#10b981; font-weight:600;"><i class="fa-solid fa-check"></i> ครบแล้ว</div>' : ''}
+            </td>
+            <td data-label="กำหนดส่งมอบ" style="font-weight: 600; text-align: center; white-space: nowrap;">${expiryDate ? formatThaiShort(p.dates.signed) : '-'}</td>
+            <td data-label="ความคืบหน้า" style="text-align: center;">
                 <div style="font-size: 11px; margin-bottom: 4px; font-weight: 600; color: ${progressColor};">${progressPercent.toFixed(1)}%</div>
-                <div style="width: 80px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden;">
+                <div style="width: 75px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin: 0 auto;">
                     <div style="width: ${progressPercent}%; height: 100%; background: ${progressColor}; transition: width 0.4s ease;"></div>
                 </div>
             </td>
-            <td data-label="จัดการ">
+            <td data-label="จัดการ" style="text-align: center; white-space: nowrap;">
                 <button class="icon-btn" onclick="openEditModal(${p.id})" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
                 <button class="icon-btn" style="color: #e74c3c; margin-left: 10px;" onclick="deleteProject(event, ${p.id})" title="ลบ"><i class="fa-solid fa-trash"></i></button>
             </td>
@@ -817,10 +969,16 @@ function printProjectSummary() {
         const itemType = (p.notes && p.notes.itemType) || 'ไม่ระบุแหล่งเงิน';
         if (!groups[plan]) groups[plan] = {};
         if (!groups[plan][itemType]) groups[plan][itemType] = { projects: [], budget: 0, po: 0, disbursed: 0 };
+        const poVal = Number(p.po || 0);
+        let disbVal = Number(p.disbursed || 0);
+        if (p.notes && Array.isArray(p.notes.disbursements) && p.notes.disbursements.length > 0) {
+            const sumDisb = p.notes.disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+            if (sumDisb > 0) disbVal = sumDisb;
+        }
         groups[plan][itemType].projects.push(p);
-        groups[plan][itemType].budget += Number(p.budget);
-        groups[plan][itemType].po += Number(p.po || 0);
-        groups[plan][itemType].disbursed += Number(p.disbursed);
+        groups[plan][itemType].budget += Number(p.budget || 0);
+        groups[plan][itemType].po += poVal;
+        groups[plan][itemType].disbursed += disbVal;
     });
 
     const printWindow = window.open('', '_blank');
@@ -832,6 +990,7 @@ function printProjectSummary() {
         summaryHtml += `<div class="sc-container">`;
         for (let itemType in groups[plan]) {
             const g = groups[plan][itemType];
+            const gRemain = Math.max(0, g.po - g.disbursed);
             summaryHtml += `
                 <div class="summary-card">
                     <div class="sc-title">${itemType}</div>
@@ -840,6 +999,7 @@ function printProjectSummary() {
                         <div class="sc-item"><span>งบประมาณ:</span> <strong>${formatCurrency(g.budget)}</strong></div>
                         <div class="sc-item"><span>PO/ก่อหนี้:</span> <strong>${formatCurrency(g.po)}</strong></div>
                         <div class="sc-item"><span>เบิกจ่าย:</span> <strong style="color:#1bb295">${formatCurrency(g.disbursed)}</strong></div>
+                        <div class="sc-item"><span>PO คงเหลือ:</span> <strong style="color:#e67e3a">${formatCurrency(gRemain)}</strong></div>
                     </div>
                 </div>
             `;
@@ -850,13 +1010,22 @@ function printProjectSummary() {
     let rowsHtml = filtered.map((p, index) => {
         const statusHtml = getCurrentProjectStatusHTML(p).replace(/<[^>]*>?/gm, '');
         const expiryDate = parseThaiDate(p.dates.signed);
+        const poVal = Number(p.po || 0);
+        let disbVal = Number(p.disbursed || 0);
+        if (p.notes && Array.isArray(p.notes.disbursements) && p.notes.disbursements.length > 0) {
+            const sumDisb = p.notes.disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+            if (sumDisb > 0) disbVal = sumDisb;
+        }
+        const poRemainVal = poVal > 0 ? Math.max(0, poVal - disbVal) : 0;
         return `
             <tr>
                 <td style="text-align: center;">${index + 1}</td>
                 <td>${p.name} <br> <small style="color:#666;">(${(p.notes && p.notes.plan) || '-'} / ${(p.notes && p.notes.itemType) || '-'})</small></td>
                 <td>${p.contractor || '-'} <br> <small>เลขสัญญา: ${(p.notes && p.notes.contractNo) || '-'}</small></td>
                 <td style="text-align:center">${statusHtml}</td>
-                <td style="text-align: right;">${formatCurrency(p.po || 0)}</td>
+                <td style="text-align: right;">${formatCurrency(poVal)}</td>
+                <td style="text-align: right; color:#0f766e; font-weight:600;">${formatCurrency(disbVal)}</td>
+                <td style="text-align: right; color:${poRemainVal > 0 ? '#e67e3a' : '#666'}; font-weight:600;">${formatCurrency(poRemainVal)}</td>
                 <td style="text-align: center;">${p.duration || '-'}</td>
                 <td style="text-align: center; font-weight:bold; color:#d81b60;">${expiryDate ? formatThaiShort(p.dates.signed) : '-'}</td>
             </tr>
@@ -901,11 +1070,13 @@ function printProjectSummary() {
                     <tr>
                         <th style="width: 35px;">ที่</th>
                         <th>ชื่อโครงการ / แผนงาน / แหล่งเงิน</th>
-                        <th style="width: 180px;">ผู้รับจ้าง / เลขสัญญา</th>
-                        <th style="width: 120px;">สถานะปัจจุบัน</th>
-                        <th style="width: 120px;">PO / ก่อหนี้</th>
-                        <th style="width: 80px;">ระยะเวลา (วัน)</th>
-                        <th style="width: 140px;">วันครบกำหนดสัญญา</th>
+                        <th style="width: 170px;">ผู้รับจ้าง / เลขสัญญา</th>
+                        <th style="width: 110px;">สถานะปัจจุบัน</th>
+                        <th style="width: 105px; text-align: right;">PO / ก่อหนี้</th>
+                        <th style="width: 105px; text-align: right;">เบิกจ่ายแล้ว</th>
+                        <th style="width: 105px; text-align: right;">PO คงเหลือ</th>
+                        <th style="width: 75px; text-align: center;">ระยะเวลา (วัน)</th>
+                        <th style="width: 125px; text-align: center;">วันครบกำหนดสัญญา</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1013,11 +1184,76 @@ function renderReport() {
     document.getElementById('r-comm-eval').innerText = (project.notes && project.notes.comm_eval) ? project.notes.comm_eval : '-';
     document.getElementById('r-comm-inspect').innerText = (project.notes && project.notes.comm_inspect) ? project.notes.comm_inspect : '-';
 
-    const balance = Number(project.budget) - Number(project.po) - Number(project.disbursed);
+    const poVal = Number(project.po || 0);
+    let disbVal = Number(project.disbursed || 0);
+    if (project.notes && Array.isArray(project.notes.disbursements) && project.notes.disbursements.length > 0) {
+        const sumDisb = project.notes.disbursements.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+        if (sumDisb > 0) disbVal = sumDisb;
+    }
+    const poRemaining = poVal > 0 ? Math.max(0, poVal - disbVal) : 0;
 
     document.getElementById('r-budget').innerText = formatCurrency(project.budget);
-    document.getElementById('r-po').innerText = formatCurrency(project.po);
-    document.getElementById('r-disbursed').innerText = formatCurrency(project.disbursed);
+    document.getElementById('r-po').innerText = formatCurrency(poVal);
+    document.getElementById('r-disbursed').innerText = formatCurrency(disbVal);
+    const rPoRemainEl = document.getElementById('r-po-remaining');
+    if (rPoRemainEl) rPoRemainEl.innerText = formatCurrency(poRemaining);
+
+    // Render disbursement installments list in report view
+    const rDisbListEl = document.getElementById('r-disbursement-list');
+    const rDisbCountEl = document.getElementById('r-disb-count');
+    const rDisbTotalEl = document.getElementById('r-disb-total');
+    if (rDisbListEl) {
+        let disbList = [];
+        if (project.notes && Array.isArray(project.notes.disbursements) && project.notes.disbursements.length > 0) {
+            disbList = project.notes.disbursements;
+        } else if (project.disbursed > 0 || (project.notes && (project.notes.gfRefNo || project.notes.gfDate))) {
+            disbList = [{
+                round: 'งวดที่ 1',
+                amount: project.disbursed || 0,
+                gfRefNo: (project.notes && project.notes.gfRefNo) || '',
+                gfDate: (project.notes && project.notes.gfDate) || ''
+            }];
+        }
+
+        const validDisb = disbList.filter(d => (parseFloat(d.amount) || 0) > 0 || d.gfRefNo || d.gfDate);
+        if (rDisbCountEl) rDisbCountEl.innerText = validDisb.length;
+        if (rDisbTotalEl) rDisbTotalEl.innerText = '฿' + formatCurrency(project.disbursed);
+
+        if (validDisb.length === 0) {
+            rDisbListEl.innerHTML = '<div style="font-size:12.5px; color:#94a3b8; text-align:center; padding:12px; background:#f8fafc; border-radius:6px;">ยังไม่มีข้อมูลการเบิกจ่าย</div>';
+        } else {
+            let tableHtml = `
+                <table style="width:100%; border-collapse:collapse; font-size:12.5px; background:white; border-radius:6px; overflow:hidden; border:1px solid #e2e8f0;">
+                    <thead>
+                        <tr style="background:#f1f5f9; color:#334155; text-align:left; border-bottom:1px solid #cbd5e1;">
+                            <th style="padding:7px 10px; width:120px;">งวดที่</th>
+                            <th style="padding:7px 10px; width:160px; text-align:right;">ยอดเบิกจ่าย (บาท)</th>
+                            <th style="padding:7px 10px;">เลขตัดยอด</th>
+                            <th style="padding:7px 10px;">วันที่ GF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            validDisb.forEach((d, dIdx) => {
+                const amt = parseFloat(d.amount) || 0;
+                const gfRefBadge = d.gfRefNo ? `<span style="font-family:monospace; background:#e0f2fe; color:#0369a1; padding:2px 7px; border-radius:4px; font-weight:600;">${escapeHtml(d.gfRefNo)}</span>` : '<span style="color:#cbd5e1;">-</span>';
+                const gfDateBadge = d.gfDate ? `<span style="background:#fef3c7; color:#92400e; padding:2px 7px; border-radius:4px; font-weight:500;"><i class="fa-regular fa-calendar-check"></i> ${escapeHtml(d.gfDate)}</span>` : '<span style="color:#cbd5e1;">-</span>';
+                tableHtml += `
+                    <tr style="border-bottom:1px solid #f1f5f9;">
+                        <td style="padding:7px 10px; font-weight:600; color:#1e564d;">${escapeHtml(d.round || `งวดที่ ${dIdx + 1}`)}</td>
+                        <td style="padding:7px 10px; text-align:right; font-weight:700; color:#0d9488;">฿${formatCurrency(amt)}</td>
+                        <td style="padding:7px 10px;">${gfRefBadge}</td>
+                        <td style="padding:7px 10px;">${gfDateBadge}</td>
+                    </tr>
+                `;
+            });
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            rDisbListEl.innerHTML = tableHtml;
+        }
+    }
 
     const progressPercent = project.budget > 0 ? (Number(project.disbursed) / Number(project.budget)) * 100 : 0;
     document.getElementById('r-progress-bar').style.width = `${progressPercent}%`;
@@ -1124,7 +1360,11 @@ function updateTimelineStep(stepId, iconNum, dateValue, noteValue, daysTaken) {
 function openModal() {
     document.getElementById('projectForm').reset();
     document.getElementById('p-id').value = '';
+    document.getElementById('p-disbursed').value = '0';
+    const poRemainEl = document.getElementById('p-po-remaining');
+    if (poRemainEl) poRemainEl.value = '฿0.00';
     document.getElementById('modal-title').innerText = 'เพิ่มโครงการใหม่';
+    renderDisbursementRows([]);
     document.getElementById('projectModal').classList.add('show');
 }
 
@@ -1144,10 +1384,22 @@ function openEditModal(id) {
     document.getElementById('p-allocated').value = project.allocated || 0;
     document.getElementById('p-budget').value = project.budget;
     document.getElementById('p-po').value = project.po;
-    document.getElementById('p-disbursed').value = project.disbursed;
-    if (document.getElementById('p-gfref')) document.getElementById('p-gfref').value = (project.notes && project.notes.gfRefNo) || '';
-    if (document.getElementById('p-gfdate')) document.getElementById('p-gfdate').value = (project.notes && project.notes.gfDate) || '';
-    if (document.getElementById('p-duration')) document.getElementById('p-duration').value = project.duration || 0;
+    document.getElementById('p-duration').value = project.duration || 0;
+
+    // Load multi-installment disbursements
+    let disbItems = [];
+    if (project.notes && Array.isArray(project.notes.disbursements) && project.notes.disbursements.length > 0) {
+        disbItems = project.notes.disbursements;
+    } else if (project.disbursed > 0 || (project.notes && (project.notes.gfRefNo || project.notes.gfDate))) {
+        disbItems = [{
+            round: 'งวดที่ 1',
+            amount: project.disbursed || 0,
+            gfRefNo: (project.notes && project.notes.gfRefNo) || '',
+            gfDate: (project.notes && project.notes.gfDate) || ''
+        }];
+    }
+    renderDisbursementRows(disbItems);
+    calcDisbursementTotal();
 
     document.getElementById('modal-title').innerText = 'อัปเดตโครงการ';
     document.getElementById('projectModal').classList.add('show');
@@ -1155,6 +1407,143 @@ function openEditModal(id) {
 
 function closeModal() {
     document.getElementById('projectModal').classList.remove('show');
+}
+
+// --- DISBURSEMENT ROWS MANAGEMENT (งวดการเบิกจ่าย 3) ---
+function renderDisbursementRows(items = []) {
+    const tbody = document.getElementById('disbursement-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!items || items.length === 0) {
+        addDisbursementRow({ round: 'งวดที่ 1', amount: '', gfRefNo: '', gfDate: '' });
+        return;
+    }
+
+    items.forEach((item, idx) => {
+        addDisbursementRow({
+            round: item.round || `งวดที่ ${idx + 1}`,
+            amount: item.amount !== undefined && item.amount !== '' ? item.amount : '',
+            gfRefNo: item.gfRefNo || '',
+            gfDate: item.gfDate || ''
+        });
+    });
+
+    calcDisbursementTotal();
+}
+
+function addDisbursementRow(data = {}) {
+    const tbody = document.getElementById('disbursement-tbody');
+    if (!tbody) return;
+
+    const currentRows = tbody.querySelectorAll('.disb-row');
+    const nextIdx = currentRows.length + 1;
+    const round = data.round !== undefined ? data.round : `งวดที่ ${nextIdx}`;
+    const amount = (data.amount !== undefined && data.amount !== '') ? data.amount : '';
+    const gfRefNo = data.gfRefNo || '';
+    const gfDate = data.gfDate || '';
+
+    const tr = document.createElement('tr');
+    tr.className = 'disb-row';
+    tr.style.borderBottom = '1px solid #f1f5f9';
+    tr.innerHTML = `
+        <td style="padding: 6px 8px;">
+            <input type="text" class="disb-input disb-round" value="${escapeHtml(round)}" placeholder="เช่น งวดที่ ${nextIdx}" title="ระบุชื่องวด เช่น งวดที่ 1 หรือ งวดส่งมอบงาน">
+        </td>
+        <td style="padding: 6px 8px;">
+            <input type="number" step="0.01" class="disb-input amt disb-amt" value="${amount !== '' ? amount : ''}" placeholder="0.00" oninput="calcDisbursementTotal()" title="ระบุยอดเงินที่เบิกจ่ายงวดนี้">
+        </td>
+        <td style="padding: 6px 8px;">
+            <input type="text" class="disb-input disb-gfref" value="${escapeHtml(gfRefNo)}" placeholder="เช่น 69-05-00033" oninput="syncLegacyGfFields()" title="เลขตัดยอด / เลขขอเบิก">
+        </td>
+        <td style="padding: 6px 8px;">
+            <input type="text" class="disb-input disb-gfdate" value="${escapeHtml(gfDate)}" placeholder="เช่น 15/01/2569" oninput="syncLegacyGfFields()" title="วันที่ระบบ GF ดำเนินการ">
+        </td>
+        <td style="padding: 6px 8px; text-align: center;">
+            <button type="button" class="disb-del-btn" onclick="removeDisbursementRow(this)" title="ลบงวดนี้">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+    calcDisbursementTotal();
+    syncLegacyGfFields();
+}
+
+function removeDisbursementRow(btn) {
+    const row = btn.closest('.disb-row');
+    const tbody = document.getElementById('disbursement-tbody');
+    if (!row || !tbody) return;
+
+    const rows = tbody.querySelectorAll('.disb-row');
+    if (rows.length <= 1) {
+        // Clear inputs instead of deleting the only row
+        const roundEl = row.querySelector('.disb-round');
+        const amtEl = row.querySelector('.disb-amt');
+        const gfRefEl = row.querySelector('.disb-gfref');
+        const gfDateEl = row.querySelector('.disb-gfdate');
+        if (roundEl) roundEl.value = 'งวดที่ 1';
+        if (amtEl) amtEl.value = '';
+        if (gfRefEl) gfRefEl.value = '';
+        if (gfDateEl) gfDateEl.value = '';
+    } else {
+        row.remove();
+    }
+    calcDisbursementTotal();
+    syncLegacyGfFields();
+}
+
+function calcDisbursementTotal() {
+    let sum = 0;
+    const rows = document.querySelectorAll('.disb-row');
+    rows.forEach(row => {
+        const val = parseFloat(row.querySelector('.disb-amt')?.value) || 0;
+        sum += val;
+    });
+
+    const disbInput = document.getElementById('p-disbursed');
+    if (disbInput) disbInput.value = sum > 0 ? sum.toFixed(2) : '0';
+
+    const summaryTotal = document.getElementById('disb-summary-total');
+    if (summaryTotal) summaryTotal.innerText = '฿' + formatCurrency(sum);
+
+    const summaryCount = document.getElementById('disb-summary-count');
+    if (summaryCount) summaryCount.innerText = `รวม ${rows.length} งวด`;
+
+    const poInput = document.getElementById('p-po');
+    const poVal = poInput ? (parseFloat(poInput.value) || 0) : 0;
+    const poRemain = poVal > 0 ? Math.max(0, poVal - sum) : 0;
+    const poRemainInput = document.getElementById('p-po-remaining');
+    if (poRemainInput) {
+        poRemainInput.value = '฿' + formatCurrency(poRemain);
+    }
+}
+
+function syncLegacyGfFields() {
+    const refs = [];
+    const dates = [];
+    document.querySelectorAll('.disb-row').forEach(row => {
+        const r = row.querySelector('.disb-gfref')?.value.trim();
+        const d = row.querySelector('.disb-gfdate')?.value.trim();
+        if (r) refs.push(r);
+        if (d) dates.push(d);
+    });
+
+    const gfRefInput = document.getElementById('p-gfref');
+    if (gfRefInput) gfRefInput.value = refs.join(', ');
+
+    const gfDateInput = document.getElementById('p-gfdate');
+    if (gfDateInput) gfDateInput.value = dates.length ? dates[dates.length - 1] : '';
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 async function saveProject(e) {
@@ -1172,6 +1561,26 @@ async function saveProject(e) {
         }
     }
 
+    // Collect all disbursement installment rows
+    const disbursementRows = [];
+    document.querySelectorAll('.disb-row').forEach((row, idx) => {
+        const round = row.querySelector('.disb-round')?.value.trim() || `งวดที่ ${idx + 1}`;
+        const amount = parseFloat(row.querySelector('.disb-amt')?.value) || 0;
+        const gfRefNo = row.querySelector('.disb-gfref')?.value.trim() || '';
+        const gfDate = row.querySelector('.disb-gfdate')?.value.trim() || '';
+        if (amount > 0 || gfRefNo || gfDate || row.querySelector('.disb-round')?.value.trim()) {
+            disbursementRows.push({
+                id: String(idx + 1),
+                round: round,
+                amount: amount,
+                gfRefNo: gfRefNo,
+                gfDate: gfDate
+            });
+        }
+    });
+
+    const totalDisbursed = disbursementRows.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
     const projectData = {
         name: document.getElementById('p-name').value,
         contractType: document.getElementById('p-type').value,
@@ -1180,7 +1589,7 @@ async function saveProject(e) {
         allocated: parseFloat(document.getElementById('p-allocated').value) || 0,
         budget: parseFloat(document.getElementById('p-budget').value) || 0,
         po: parseFloat(document.getElementById('p-po').value) || 0,
-        disbursed: parseFloat(document.getElementById('p-disbursed').value) || 0,
+        disbursed: totalDisbursed,
         duration: parseInt(document.getElementById('p-duration')?.value || 0, 10),
         dates: existingDates,
         notes: existingNotes
@@ -1188,8 +1597,14 @@ async function saveProject(e) {
 
     projectData.notes.plan = document.getElementById('p-plan').value;
     projectData.notes.itemType = document.getElementById('p-item-type').value;
-    if (document.getElementById('p-gfref')) projectData.notes.gfRefNo = document.getElementById('p-gfref').value.trim();
-    if (document.getElementById('p-gfdate')) projectData.notes.gfDate = document.getElementById('p-gfdate').value.trim();
+    projectData.notes.disbursements = disbursementRows;
+
+    const allGfRefs = disbursementRows.map(r => r.gfRefNo).filter(Boolean);
+    projectData.notes.gfRefNo = allGfRefs.join(', ');
+
+    const allGfDates = disbursementRows.map(r => r.gfDate).filter(Boolean);
+    projectData.notes.gfDate = allGfDates.length ? allGfDates[allGfDates.length - 1] : '';
+
     projectData.notes.date_inspection = projectData.dates.inspection || '';
     projectData.notes.date_payment = projectData.dates.payment || '';
 
@@ -1277,23 +1692,31 @@ async function updateSingleStep(stepKey) {
             denyButton: 'swal2-deny-custom'
         },
         didOpen: () => {
-            flatpickr("#swal-date", {
-                locale: "th",
-                dateFormat: "Y-m-d",
-                altInput: true,
-                altFormat: "d M Y",
-                allowInput: false,
-                formatDate: (date, formatStr) => {
-                    if (formatStr === "d M Y") {
-                        const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-                        let y = date.getFullYear() + 543;
-                        let m = thaiMonths[date.getMonth()];
-                        let d = String(date.getDate()).padStart(2, '0');
-                        return `${d} ${m} ${y}`;
+            if (typeof flatpickr !== 'undefined') {
+                flatpickr("#swal-date", {
+                    locale: "th",
+                    dateFormat: "Y-m-d",
+                    altInput: true,
+                    altFormat: "d M Y",
+                    allowInput: false,
+                    formatDate: (date, formatStr) => {
+                        if (formatStr === "d M Y") {
+                            const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+                            let y = date.getFullYear() + 543;
+                            let m = thaiMonths[date.getMonth()];
+                            let d = String(date.getDate()).padStart(2, '0');
+                            return `${d} ${m} ${y}`;
+                        }
+                        return flatpickr.formatDate(date, formatStr);
                     }
-                    return flatpickr.formatDate(date, formatStr);
+                });
+            } else {
+                const dateEl = document.getElementById('swal-date');
+                if (dateEl) {
+                    dateEl.type = 'date';
+                    dateEl.removeAttribute('readonly');
                 }
-            });
+            }
         },
         preDeny: () => {
             return { date: '', note: '', contractNo: '' };
@@ -1423,6 +1846,19 @@ async function openCommitteeModal() {
     }
 }
 
+function contract_backToMainHub() {
+    if (typeof setView === 'function') {
+        const nav = document.getElementById('nav-pending-plan') || document.getElementById('nav-table') || document.getElementById('nav-summary');
+        if (nav) {
+            const v = nav.id.replace('nav-', '');
+            setView(v, nav);
+            if (v === 'pending-plan' && typeof renderPendingPlanView === 'function') renderPendingPlanView();
+            if (v === 'table' && typeof renderTable === 'function') renderTable();
+            if (v === 'summary' && typeof renderSummaryView === 'function') renderSummaryView();
+        }
+    }
+}
+
 
 // Expose handlers
 window.handleSearch = handleSearch;
@@ -1434,3 +1870,8 @@ window.deleteCurrentProject = deleteCurrentProject;
 window.openCommitteeModal = openCommitteeModal;
 window.updateSingleStep = updateSingleStep;
 window.printProjectSummary = printProjectSummary;
+window.addDisbursementRow = addDisbursementRow;
+window.removeDisbursementRow = removeDisbursementRow;
+window.calcDisbursementTotal = calcDisbursementTotal;
+window.syncLegacyGfFields = syncLegacyGfFields;
+window.contract_backToMainHub = contract_backToMainHub;

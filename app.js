@@ -1375,9 +1375,33 @@ function buildContractEntriesForPlan(planShortName, summary, groupMap) {
         desc: `[ระบบสัญญา] ${c.name || ''}`, month: toFiscalMonthAbbr(startDate) });
     }
     if (paid) {
-      out.push({ ...base, id: `CT${c.id}-PAY`, date: payDate || startDate, amount: 0, amountDeduct: paid,
-        colE: gfDate, colF: 'เบิกจ่าย (ระบบสัญญา)', refNo: notes.gfRefNo || base.refNo,
-        desc: `[ระบบสัญญา] เบิกจ่าย: ${c.name || ''}`, month: toFiscalMonthAbbr(gfDate) });
+      const disbList = (Array.isArray(notes.disbursements) && notes.disbursements.length > 0)
+        ? notes.disbursements.filter(d => parseSafeFloat(d.amount) > 0)
+        : [];
+      if (disbList.length > 0) {
+        disbList.forEach((d, dIdx) => {
+          const dAmt = parseSafeFloat(d.amount);
+          const dGfRaw = (d.gfDate || '').toString().trim();
+          const dGfDate = normalizeContractDate(dGfRaw) || dGfRaw;
+          const dPayDate = normalizeContractDate(d.payDate || notes.date_payment) || startDate;
+          out.push({
+            ...base,
+            id: `CT${c.id}-PAY-${dIdx + 1}`,
+            date: dPayDate,
+            amount: 0,
+            amountDeduct: dAmt,
+            colE: dGfDate,
+            colF: 'เบิกจ่าย (ระบบสัญญา)',
+            refNo: d.gfRefNo || notes.gfRefNo || base.refNo,
+            desc: `[ระบบสัญญา] เบิกจ่าย (${d.round || `งวดที่ ${dIdx + 1}`}): ${c.name || ''}`,
+            month: toFiscalMonthAbbr(dGfDate || dPayDate)
+          });
+        });
+      } else {
+        out.push({ ...base, id: `CT${c.id}-PAY`, date: payDate || startDate, amount: 0, amountDeduct: paid,
+          colE: gfDate, colF: 'เบิกจ่าย (ระบบสัญญา)', refNo: notes.gfRefNo || base.refNo,
+          desc: `[ระบบสัญญา] เบิกจ่าย: ${c.name || ''}`, month: toFiscalMonthAbbr(gfDate) });
+      }
     }
   });
   return out;
@@ -4400,8 +4424,17 @@ async function syncGfExtras(pairs) {
     const contracts = [];
     ((cRes && cRes.data) || []).forEach(c => {
       const n = c.notes || {};
-      const k = norm(n.gfRefNo);
-      if (k && !String(n.gfDate || '').trim() && map.has(k)) contracts.push({ id: c.id, gfDate: map.get(k) });
+      if (Array.isArray(n.disbursements) && n.disbursements.length > 0) {
+        n.disbursements.forEach(d => {
+          const dk = norm(d.gfRefNo);
+          if (dk && !String(d.gfDate || '').trim() && map.has(dk)) {
+            contracts.push({ id: c.id, gfDate: map.get(dk), refNo: d.gfRefNo });
+          }
+        });
+      } else {
+        const k = norm(n.gfRefNo);
+        if (k && !String(n.gfDate || '').trim() && map.has(k)) contracts.push({ id: c.id, gfDate: map.get(k), refNo: n.gfRefNo });
+      }
     });
     const foreign = [];
     ((fRes && fRes.data) || []).forEach(r => {
