@@ -3646,9 +3646,13 @@ window.setDocDeptFilter = function (dept) {
 
 function renderDocTracking() {
   if (!cache || !cache.entries) return;
+  // Page may not contain the doc tracking section
+  if (!document.getElementById('docTrackingTablesContainer')) return;
 
-  const q = (document.getElementById('docSearchInput').value || "").toLowerCase().trim();
-  const hideFinished = document.getElementById('docFilterFinished').checked;
+  const searchEl = document.getElementById('docSearchInput');
+  const finishedEl = document.getElementById('docFilterFinished');
+  const q = ((searchEl && searchEl.value) || "").toLowerCase().trim();
+  const hideFinished = finishedEl ? finishedEl.checked : false;
   const isAllGroups = window.currentDocGroupFilters.size === 0;
   const filterDept = window.currentDocDeptFilter || "";
 
