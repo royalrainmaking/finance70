@@ -364,7 +364,7 @@ window.contract_init = function() {
                 style="display: flex; flex-direction: column; overflow: hidden; min-height: 0; flex: 1;">
                 <div class="modal-header">
                     <h2><i class="fa-solid fa-pen"></i> <span id="modal-title">เพิ่มโครงการใหม่</span></h2>
-                    <button class="close-modal" onclick="closeModal()" type="button"><i
+                    <button class="close-modal" onclick="closeProjectModal()" type="button"><i
                             class="fa-solid fa-times"></i></button>
                 </div>
 
@@ -504,7 +504,7 @@ window.contract_init = function() {
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+                    <button type="button" class="btn btn-outline" onclick="closeProjectModal()">ยกเลิก</button>
                     <button type="submit" class="btn btn-teal"><i class="fa-solid fa-check-circle"></i>
                         บันทึกและอัปเดต</button>
                 </div>
@@ -1405,8 +1405,8 @@ function openEditModal(id) {
     document.getElementById('projectModal').classList.add('show');
 }
 
-function closeModal() {
-    document.getElementById('projectModal').classList.remove('show');
+function closeProjectModal() {
+    const m = document.getElementById('projectModal'); if (m) m.classList.remove('show');
 }
 
 // --- DISBURSEMENT ROWS MANAGEMENT (งวดการเบิกจ่าย 3) ---
@@ -1610,7 +1610,7 @@ async function saveProject(e) {
 
     if (idVal) projectData.id = parseInt(idVal);
 
-    closeModal();
+    closeProjectModal();
     const success = await apiSaveProject(projectData);
     if (success) {
         await fetchProjects();
@@ -1863,7 +1863,7 @@ function contract_backToMainHub() {
 // Expose handlers
 window.handleSearch = handleSearch;
 window.openModal = openModal;
-window.closeModal = closeModal;
+window.closeProjectModal = closeProjectModal;
 window.saveProject = saveProject;
 window.openEditModal = openEditModal;
 window.deleteCurrentProject = deleteCurrentProject;
