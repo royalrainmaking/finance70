@@ -4854,6 +4854,16 @@ function toThaiDigits(str) {
 }
 
 /* ═══ PLAN STAMP SETTINGS & GOOGLE SHEET SYNC ═══ */
+// กิจกรรมย่อย: หมวด C (งบลงทุน/ครุภัณฑ์/สิ่งก่อสร้าง) = "ด้านการพัสดุ" เสมอ, หมวดอื่นใช้ค่าที่ตั้งไว้
+const SUB_ACT_CAT_C = 'ด้านการพัสดุ';
+function isCatC(code) {
+  return String(code || '').replace(/[()\s#]/g, '').toUpperCase().startsWith('C');
+}
+function resolveSubAct(catCodes, configuredSubAct) {
+  const codes = (catCodes || []).filter(c => c);
+  if (codes.length > 0 && codes.every(isCatC)) return SUB_ACT_CAT_C;
+  return configuredSubAct;
+}
 function getStampSettingsForPlan(planKey) {
   const defaultP = cache && cache.plans ? cache.plans.find(p => p.shortName === planKey) : null;
   const defaultVal = {
@@ -5025,6 +5035,7 @@ function openStampOnlineFromSelected(fromSidebar = false, id = null) {
       mergedItem.id = selectedIds.join(',');
       mergedItem.combinedTags = tags.join(" ");
       mergedItem.amount = totalAmt;
+      mergedItem.allCatCodes = items.map(it => it.catCode || it.category || it.code || '');
       
       setView('stamp-online', document.getElementById('nav-stamp-online'));
       
@@ -5094,6 +5105,10 @@ function openPrintPlanModal(id = null) {
   let defaultOutput = stampConfig.output;
   let defaultAct = stampConfig.act;
   let defaultSubAct = stampConfig.subAct;
+  if (selectedIds.length > 0 && cache && cache.entries) {
+    const selItems = cache.entries.filter(x => selectedIds.includes(String(x.id)));
+    defaultSubAct = resolveSubAct(selItems.map(it => it.catCode || it.category || it.code || ''), stampConfig.subAct);
+  }
   let defaultExpenseCat = stampConfig.expenseCat;
 
   const modalHtml = `

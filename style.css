@@ -2060,3 +2060,72 @@ textarea[required]:valid {
   overflow-wrap: anywhere;
   line-height: 1.35;
 }
+
+/* ===== แก้ข้อความล้น/ทับกันทั้งเว็บ =====
+   กฎ .data-table th/td:nth-child(n) ด้านบน (ความกว้างคงที่ + nowrap) ออกแบบมาสำหรับ
+   ตารางรายการหลักเท่านั้น (#view-table, #view-pending-plan) แต่ไปมีผลกับทุกตาราง
+   เช่น หน้าตั้งค่าแผนงานหลัก, Dashboard, ติดตามเอกสาร, สัญญา ทำให้คอลัมน์แคบและข้อความล้น
+   → รีเซ็ตกฎเหล่านั้นสำหรับตารางอื่นทั้งหมด (style inline ของแต่ละตารางยังมีผลตามเดิม) */
+.data-table:not(#view-table .data-table):not(#view-pending-plan .data-table) th,
+.data-table:not(#view-table .data-table):not(#view-pending-plan .data-table) td {
+  width: auto;
+  min-width: 0;
+  white-space: normal;
+}
+
+.data-table td,
+.data-table th {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* หน้าตั้งค่าแผนงานหลัก */
+#planListTable .data-table {
+  table-layout: auto;
+}
+#planListTable .data-table td,
+#planListTable .data-table th {
+  text-align: left !important;
+  line-height: 1.5;
+}
+#planListTable .data-table td:first-child,
+#planListTable .data-table th:first-child {
+  white-space: nowrap !important;
+  overflow-wrap: normal;
+}
+#planListTable .data-table td:last-child,
+#planListTable .data-table th:last-child {
+  text-align: center !important;
+  white-space: nowrap !important;
+  width: 1% !important;
+}
+#budgetSettingsTable td,
+#budgetSettingsTable th {
+  padding: 8px !important;
+  line-height: 1.4;
+}
+#budgetSettingsTable td:not(:first-child) {
+  white-space: nowrap !important;
+  overflow-wrap: normal;
+}
+#budgetSettingsTable th {
+  white-space: normal;
+}
+#planEditContainer label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* หัวข้อ/ปุ่มใน flex ไม่ให้ทับกัน */
+.app-view h2,
+.app-view h3,
+.app-view h4 {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.btn,
+.btn-cancel,
+.submit-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}

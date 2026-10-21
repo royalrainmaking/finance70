@@ -176,7 +176,12 @@ function getStampOnlineData() {
     plan: stampConfig.plan || '',
     output: stampConfig.output || '',
     act: stampConfig.act || '',
-    subAct: stampConfig.subAct || '',
+    subAct: (function () {
+      var configured = stampConfig.subAct || '';
+      if (!item || typeof resolveSubAct !== 'function') return configured;
+      var codes = item.allCatCodes || [item.catCode || item.category || item.code || ''];
+      return resolveSubAct(codes, configured);
+    })(),
     expenseCat: stampConfig.expenseCat || '',
     itemTag: itemTag,
     amtNum: amtNum,
