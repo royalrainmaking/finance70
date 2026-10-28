@@ -478,7 +478,7 @@ function budget_submitReserveAndDeduct(data) {
   
   sheet.getRange(nr, 1).setValue(nextId);
   sheet.getRange(nr, 2).setValue(data.plan || "");
-  sheet.getRange(nr, 3).setValue(data.type || "PO"); 
+  sheet.getRange(nr, 3).setValue((data.type && data.type !== "PO") ? data.type : "Normal"); 
   sheet.getRange(nr, 4).setValue(data.remark || "");
   sheet.getRange(nr, 5).setValue(new Date()); 
   sheet.getRange(nr, 6).setValue(data.liquidateRefNo || "");

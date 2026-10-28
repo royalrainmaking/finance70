@@ -2750,7 +2750,7 @@ document.getElementById('offsetForm').onsubmit = async (e) => { e.preventDefault
 
 
 document.getElementById('editForm').onsubmit = async (e) => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.target)); const r = await call('submitUpdate', data); if (r?.success) { showModal('สำเร็จ', 'แก้ไขข้อมูลเรียบร้อย' + (data.id ? ' ID: ' + data.id : '')); setView('table'); init(); e.target.reset(); } };
-document.getElementById('reserveDeductForm').onsubmit = async (e) => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.target)); data.col = data.cat; data.plan = ''; const r = await call('submitReserveAndDeduct', data); if (r?.success) { showModal('สำเร็จ', 'บันทึกรายการด่วนเรียบร้อย ID: ' + r.id); init(); e.target.reset(); } };
+document.getElementById('reserveDeductForm').onsubmit = async (e) => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.target)); data.col = data.cat; data.plan = ''; data.type = 'Normal'; const r = await call('submitReserveAndDeduct', data); if (r?.success) { showModal('สำเร็จ', 'บันทึกรายการด่วนเรียบร้อย ID: ' + r.id); init(); e.target.reset(); } };
 
 
 // === Plan Settings Logic ===
