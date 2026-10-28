@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 
 <head>
@@ -1099,6 +1099,9 @@
           <span><span class="material-symbols-outlined"
               style="vertical-align:bottom; margin-right:8px; color:var(--primary);">dashboard</span>Dashboard สรุปงบประมาณ & แนวโน้ม</span>
           <div style="display:flex; gap:8px; align-items:center;">
+            <select id="dashPlanFilter" onchange="window.dashPlanSel=this.value; renderSummaryReport()"
+              style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); font-size:14px; outline:none; font-weight:700;">
+            </select>
             <select id="gfMonthFilter" onchange="renderSummaryReport()"
               style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); font-size:14px; outline:none;">
               <option value="">ทุกเดือน (GF)</option>
@@ -1114,89 +1117,85 @@
         
         <!-- Enhanced Dashboard Container -->
         <div id="enhancedDashboardContainer" style="margin-bottom: 30px;">
-          
+
+          <!-- Insight banner -->
+          <div id="dashInsight" style="background:linear-gradient(135deg,#1e3a8a,#3b82f6); color:white; border-radius:14px; padding:18px 22px; margin-bottom:18px; box-shadow:0 6px 16px rgba(37,99,235,0.25);"></div>
+
           <!-- KPI Cards -->
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #3b82f6; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-              <div style="color:#64748b; font-size:13px; font-weight:600; margin-bottom:4px;">งบประมาณทั้งหมด (รวมปรับฐาน)</div>
-              <div id="kpiTotalBudget" style="font-size:24px; font-weight:800; color:#1e293b;">0.00 ฿</div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 20px;">
+            <div style="background:white; padding:14px 16px; min-width:0; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #3b82f6;">
+              <div style="color:#64748b; font-size:12px; font-weight:600;">งบประมาณหลังปรับแผน</div>
+              <div id="kpiTotalBudget" style="font-size:clamp(15px,1.4vw,19px); font-weight:800; color:#1e293b; overflow-wrap:anywhere; line-height:1.25;">0.00 ฿</div>
+              <div style="font-size:11px; color:#94a3b8;">ทุกแผนงานรวมกัน</div>
             </div>
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #f59e0b; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-              <div style="color:#64748b; font-size:13px; font-weight:600; margin-bottom:4px;">กันเงิน / สัญญา (PO) สะสม</div>
-              <div id="kpiTotalReserved" style="font-size:24px; font-weight:800; color:#1e293b;">0.00 ฿</div>
+            <div style="background:white; padding:14px 16px; min-width:0; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #f59e0b;">
+              <div style="color:#64748b; font-size:12px; font-weight:600;">กันเงิน / สัญญา (PO) สะสม</div>
+              <div id="kpiTotalReserved" style="font-size:clamp(15px,1.4vw,19px); font-weight:800; color:#1e293b; overflow-wrap:anywhere; line-height:1.25;">0.00 ฿</div>
+              <div id="kpiReservedPct" style="font-size:11px; color:#94a3b8;"></div>
             </div>
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #10b981; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-              <div style="color:#64748b; font-size:13px; font-weight:600; margin-bottom:4px;">เบิกจ่าย / ตัดยอดแล้ว</div>
-              <div id="kpiTotalDeducted" style="font-size:24px; font-weight:800; color:#1e293b;">0.00 ฿</div>
+            <div style="background:white; padding:14px 16px; min-width:0; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #8b5cf6;">
+              <div style="color:#64748b; font-size:12px; font-weight:600;">ค้างท่อ (กันแล้วยังไม่ตัด)</div>
+              <div id="kpiPipeline" style="font-size:clamp(15px,1.4vw,19px); font-weight:800; color:#1e293b; overflow-wrap:anywhere; line-height:1.25;">0.00 ฿</div>
+              <div id="kpiPipelinePct" style="font-size:11px; color:#94a3b8;"></div>
             </div>
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #ef4444; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-              <div style="color:#64748b; font-size:13px; font-weight:600; margin-bottom:4px;">งบประมาณคงเหลือจริง</div>
-              <div id="kpiTotalRemaining" style="font-size:24px; font-weight:800; color:#1e293b;">0.00 ฿</div>
+            <div style="background:white; padding:14px 16px; min-width:0; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #10b981;">
+              <div style="color:#64748b; font-size:12px; font-weight:600;">เบิกจ่ายแล้ว (GF)</div>
+              <div id="kpiTotalDeducted" style="font-size:clamp(15px,1.4vw,19px); font-weight:800; color:#1e293b; overflow-wrap:anywhere; line-height:1.25;">0.00 ฿</div>
+              <div id="kpiGfPct" style="font-size:11px; color:#94a3b8;"></div>
+            </div>
+            <div style="background:white; padding:14px 16px; min-width:0; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #ef4444;">
+              <div style="color:#64748b; font-size:12px; font-weight:600;">งบคงเหลือ (ยังไม่กัน)</div>
+              <div id="kpiTotalRemaining" style="font-size:clamp(15px,1.4vw,19px); font-weight:800; color:#1e293b; overflow-wrap:anywhere; line-height:1.25;">0.00 ฿</div>
+              <div id="kpiRemainPct" style="font-size:11px; color:#94a3b8;"></div>
+            </div>
+            <div style="background:white; padding:14px 16px; min-width:0; border-radius:12px; border:1px solid #e2e8f0; border-left:5px solid #0ea5e9;">
+              <div style="color:#64748b; font-size:12px; font-weight:600;">คาดการณ์เบิกจ่ายสิ้นปี</div>
+              <div id="kpiForecastYE" style="font-size:clamp(15px,1.4vw,19px); font-weight:800; color:#1e293b; overflow-wrap:anywhere; line-height:1.25;">0.00 ฿</div>
+              <div id="kpiForecastPct" style="font-size:11px; color:#94a3b8;"></div>
             </div>
           </div>
 
-          <!-- Charts Grid 1 -->
-          <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px;">
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-              <h4 style="margin:0 0 16px 0; color:var(--primary-dark); font-size:15px; display:flex; justify-content:space-between;">
-                สถานะการใช้จ่ายแยกตามแผนงาน (บาท)
-              </h4>
-              <div style="height:350px; position:relative;">
-                <canvas id="planStackedChart"></canvas>
-              </div>
+          <!-- Monthly forecast chart + quarterly table -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 20px; margin-bottom: 20px;">
+            <div style="background:white; padding:20px; min-width:0; overflow:hidden; border-radius:12px; border:1px solid var(--border);">
+              <h4 style="margin:0 0 4px 0; color:var(--primary-dark); font-size:15px;">การเบิกจ่ายรายเดือน: จริง vs คาดการณ์ vs เป้าหมาย</h4>
+              <div style="font-size:11px; color:#94a3b8; margin-bottom:10px;">แท่ง = เบิกจ่าย GF รายเดือน (จริง/คาดการณ์) • เส้น = ยอดสะสม เทียบเส้นเป้าหมายเฉลี่ยรายเดือน</div>
+              <div style="height:340px; position:relative;"><canvas id="monthlyTrendChart"></canvas></div>
             </div>
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+            <div style="background:white; padding:20px; min-width:0; overflow:hidden; border-radius:12px; border:1px solid var(--border);">
+              <h4 style="margin:0 0 10px 0; color:var(--primary-dark); font-size:15px;">สรุปรายไตรมาส (ปีงบประมาณ)</h4>
+              <div style="height:190px; position:relative;"><canvas id="quarterChart"></canvas></div>
+              <div id="quarterTable" style="margin-top:10px; font-size:12px;"></div>
+            </div>
+          </div>
+
+          <!-- Plan status + donut -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 20px; margin-bottom: 20px;">
+            <div style="background:white; padding:20px; min-width:0; overflow:hidden; border-radius:12px; border:1px solid var(--border);">
+              <h4 style="margin:0 0 16px 0; color:var(--primary-dark); font-size:15px;">สถานะงบประมาณแยกตามแผนงาน (บาท)</h4>
+              <div style="height:320px; position:relative;"><canvas id="planStackedChart"></canvas></div>
+            </div>
+            <div style="background:white; padding:20px; min-width:0; overflow:hidden; border-radius:12px; border:1px solid var(--border);">
               <h4 style="margin:0 0 16px 0; color:var(--primary-dark); font-size:15px; text-align:center;">สัดส่วนงบประมาณแต่ละแผน</h4>
-              <div style="height:350px; position:relative; display:flex; justify-content:center; align-items:center;">
-                <canvas id="planDonutChart"></canvas>
-              </div>
+              <div style="height:320px; position:relative;"><canvas id="planDonutChart"></canvas></div>
             </div>
           </div>
 
-          <!-- Charts Grid 2 -->
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-              <h4 style="margin:0 0 16px 0; color:var(--primary-dark); font-size:15px;">สรุปการใช้จ่ายรายหมวดหมู่ (Top 5)</h4>
-              <div style="height:300px; position:relative;">
-                <canvas id="categoryBarChart"></canvas>
-              </div>
+          <!-- Plan forecast table + category -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 20px;">
+            <div style="background:white; padding:20px; min-width:0; overflow:hidden; border-radius:12px; border:1px solid var(--border); min-width:0; overflow:hidden;">
+              <h4 style="margin:0 0 4px 0; color:var(--primary-dark); font-size:15px;">คาดการณ์สิ้นปีรายแผนงาน</h4>
+              <div style="font-size:11px; color:#94a3b8; margin-bottom:10px;">คาดการณ์จากอัตราเบิกจ่ายเฉลี่ย + ยอดค้างท่อที่จะทยอยตัดยอด (ไม่เกินงบที่ได้รับ)</div>
+              <div id="planForecastTable" style="font-size:12px;"></div>
             </div>
-            <div style="background:white; padding:20px; border-radius:12px; border:1px solid var(--border); box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-              <h4 style="margin:0 0 16px 0; color:var(--primary-dark); font-size:15px;">แนวโน้มการเบิกจ่ายสะสมรายเดือน</h4>
-              <div style="height:300px; position:relative;">
-                <canvas id="monthlyTrendChart"></canvas>
-              </div>
+            <div style="background:white; padding:20px; min-width:0; overflow:hidden; border-radius:12px; border:1px solid var(--border);">
+              <h4 style="margin:0 0 16px 0; color:var(--primary-dark); font-size:15px;">หมวดที่ใช้จ่ายสูงสุด (Top 5)</h4>
+              <div style="height:300px; position:relative;"><canvas id="categoryBarChart"></canvas></div>
             </div>
           </div>
 
         </div>
 
-        <h3 style="margin-bottom:12px; color:var(--primary-dark);">รายละเอียดงบประมาณรายแผน</h3>
-        <div style="overflow-x: auto; width: 100%; padding-bottom: 8px;">
-          <table class="data-table summary-table"
-            style="table-layout: auto; width: 100%; min-width: 1200px; font-size:12px; white-space: nowrap;">
-            <thead>
-              <tr>
-                <th style="width:40px; text-align:center;">ลำดับ</th>
-                <th style="width:150px;">รายการ</th>
-                <th style="width:80px; text-align:right;">งบประมาณ ตาม พรบ.</th>
-                <th style="width:85px; text-align:right;">งบประมาณหลัง ปรับแผน</th>
-                <th style="width:85px; text-align:right;">เงินทดรองราชการ /เงินกัน</th>
-                <th style="width:80px; text-align:right;">สัญญา (PO)</th>
-                <th style="width:80px; text-align:right;">เบิกเงิน (PO)</th>
-                <th style="width:85px; text-align:right;">สัญญาคงเหลือ</th>
-                <th style="width:85px; text-align:right;">เบิกจ่ายลดยอด [กองแผน]</th>
-                <th style="width:85px; text-align:right;">GF รวมทั้งหมด</th>
-                <th style="width:80px; text-align:right;">ค้างท่อ</th>
-                <th style="width:85px; text-align:right;">งบประมาณคงเหลือ</th>
-                <th style="width:60px; text-align:right;">ผลการเบิกจ่าย(%)</th>
-              </tr>
-            </thead>
-            <tbody id="summaryTbody">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
 
@@ -1419,7 +1418,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=20261014-2210"></script>
+  <script src="app.js?v=20261028-1440"></script>
   <script src="contracts.js?v=20261021-1410"></script>
   <script src="foreign.js?v=20261014-2210"></script>
 </body>

@@ -3148,362 +3148,544 @@ function renderGFSummary() {
   tbody.innerHTML = html;
 }
 
-// --- Detailed Dashboard Charts logic ---
+// --- Dashboard: actual + forecast (monthly / quarterly) ---
 let planStackedChart = null;
 let planDonutChart = null;
 let categoryBarChart = null;
 let monthlyTrendChart = null;
+let quarterChart = null;
+
+const DASH_FISCAL_TH = ["ต.ค.", "พ.ย.", "ธ.ค.", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย."];
+const DASH_FISCAL_EN = ["oct", "nov", "dec", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep"];
+
+// หา index เดือนในปีงบประมาณ (ต.ค.=0 ... ก.ย.=11) จากข้อความวันที่/ชื่อเดือน; -1 ถ้าหาไม่เจอ
+function dashFiscalIdx(...vals) {
+  for (const v of vals) {
+    if (!v) continue;
+    const s = String(v);
+    for (let i = 0; i < 12; i++) if (s.includes(DASH_FISCAL_TH[i])) return i;
+    const l = s.toLowerCase();
+    for (let i = 0; i < 12; i++) if (l.includes(DASH_FISCAL_EN[i])) return i;
+  }
+  return -1;
+}
+
+// คาดการณ์เบิกจ่าย GF รายเดือนหลังเดือนปัจจุบัน
+// - ฐาน = ค่าเฉลี่ย 3 เดือนล่าสุดที่ครบแล้ว (ถ้ายังไม่มีใช้เดือนปัจจุบัน)
+// - 3 เดือนถัดไป: อย่างน้อยต้องเท่ากับ (ยอดกันที่ยังไม่ได้ GF / 3)
+// - รวมแล้วไม่เกินงบที่เหลือ
+function dashForecastSeries(actual, pendingGF, alloc, cur) {
+  const fc = new Array(12).fill(0);
+  const done = actual.slice(0, cur).slice(-3);
+  const src = done.length ? done : [actual[cur] || 0];
+  const base = src.reduce((a, b) => a + b, 0) / src.length;
+  let left = Math.max(0, alloc - actual.reduce((a, b) => a + b, 0));
+  const pipe = Math.max(0, pendingGF);
+  for (let i = cur + 1; i < 12; i++) {
+    let v = base;
+    if (pipe > 0 && i - cur <= 3) v = Math.max(v, pipe / 3);
+    v = Math.min(v, left);
+    fc[i] = v;
+    left -= v;
+  }
+  return fc;
+}
 
 function renderDashboardCharts() {
   if (!cache || !cache.plans || !cache.entries) return;
+  if (typeof Chart === 'undefined') return;
 
-  let totalAllocated = 0;
-  let totalReserved = 0;
-  let totalDeducted = 0;
+  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt0 = n => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  const fmtM = n => (n / 1000000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' ล.';
+  const pct = (v, t) => t > 0 ? (v * 100 / t) : 0;
+  const isCancelled = e => e.colF && e.colF.toString().includes('ยกเลิก');
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
 
-  const planLabels = [];
-  const planColors = [];
-  
-  const planAllocatedData = [];
-  const planReservedData = [];
-  const planDeductedData = [];
-  const planRemainingData = [];
+  const nowIdx = (new Date().getMonth() + 9) % 12; // ต.ค. = 0
+  const cur = nowIdx;
 
-  // 1. Calculate Plan Budgets
-  cache.plans.forEach(p => {
-    planLabels.push(p.shortName);
-    planColors.push(p.themeColor || '#3b82f6');
-    
-    let alloc = 0;
-    if (p.budgets) {
-      p.budgets.forEach(b => {
-        alloc += (b.allocated || 0) + (b.increase || 0) - (b.decrease || 0);
-      });
+  // ---- 1. รวมข้อมูลรายแผน ----
+  // ตัวเลือกแผน: ค่าเริ่มต้น = แผนที่เลือกอยู่ ('ALL' = ดูทุกแผน เปรียบเทียบรายแผน)
+  const sel = document.getElementById('dashPlanFilter');
+  if (sel) {
+    const names = cache.plans.map(p => p.shortName);
+    if (!window.dashPlanSel || (window.dashPlanSel !== 'ALL' && !names.includes(window.dashPlanSel))) {
+      window.dashPlanSel = names.includes(currentPlan) ? currentPlan : (names[0] || 'ALL');
     }
-    totalAllocated += alloc;
-    planAllocatedData.push(alloc);
+    sel.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('') + '<option value="ALL">เปรียบเทียบทุกแผน (ยอดรวม)</option>';
+    sel.value = window.dashPlanSel;
+  }
+  const selPlan = window.dashPlanSel || 'ALL';
+  const plans = cache.plans.filter(p => selPlan === 'ALL' || p.shortName === selPlan).map(p => {
+    let alloc = 0;
+    (p.budgets || []).forEach(b => { alloc += (b.allocated || 0) + (b.increase || 0) - (b.decrease || 0); });
+    return { name: p.shortName, color: p.color || p.themeColor || '#3b82f6', alloc, R: 0, D: 0, G: 0, gfMonthly: new Array(12).fill(0), resMonthly: new Array(12).fill(0) };
+  });
+  const planMap = {};
+  plans.forEach(p => { planMap[p.name] = p; });
 
-    // Entries for this plan
-    let pReserved = 0;
-    let pDeducted = 0;
-    cache.entries.forEach(e => {
-      if (e.plan === p.shortName && !(e.colF && e.colF.toString().includes('ยกเลิก'))) {
-        const deduct = parseSafeFloat(e.amountDeduct || 0);
-        const reserve = parseSafeFloat(e.amount || 0);
-        
-        if (deduct > 0) {
-          pDeducted += deduct;
-        } else if (reserve > 0) {
-          pReserved += reserve;
+  const catMap = {};
+  cache.entries.forEach(e => {
+    const p = planMap[e.plan];
+    if (!p || isCancelled(e)) return;
+    const amt = parseSafeFloat(e.amount || 0);
+    const deduct = parseSafeFloat(e.amountDeduct || 0);
+    p.R += amt;
+    p.D += deduct;
+    if (e.colE && deduct) {
+      p.G += deduct;
+      const gi = dashFiscalIdx(e.colE, e.month);
+      if (gi >= 0) p.gfMonthly[gi] += deduct;
+    }
+    const ri = dashFiscalIdx(e.date);
+    if (ri >= 0 && amt > 0) p.resMonthly[ri] += amt;
+    if (e.catCode) catMap[e.catCode] = (catMap[e.catCode] || 0) + amt;
+  });
+
+  // ---- 2. คาดการณ์รายแผน แล้วรวม ----
+  const gfActual = new Array(12).fill(0);
+  const gfForecast = new Array(12).fill(0);
+  const resNew = new Array(12).fill(0);
+  let T = { alloc: 0, R: 0, D: 0, G: 0 };
+  plans.forEach(p => {
+    // ยอด GF ที่ลงเดือนไม่ได้ (ไม่มีเดือน) ไม่นำไปคำนวณอัตรา
+    p.fc = dashForecastSeries(p.gfMonthly, p.R - p.G, p.alloc, cur);
+    p.ye = p.G + p.fc.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < 12; i++) { gfActual[i] += p.gfMonthly[i]; gfForecast[i] += p.fc[i]; resNew[i] += p.resMonthly[i]; }
+    T.alloc += p.alloc; T.R += p.R; T.D += p.D; T.G += p.G;
+  });
+  const pipeline = T.R - T.D;
+  const remaining = T.alloc - T.R;
+  const yearEnd = T.G + gfForecast.reduce((a, b) => a + b, 0);
+  window.dashState = { gfActual, gfForecast, resNew, cur, alloc: T.alloc };
+
+  // ---- 3. KPI ----
+  const fmtKPI = n => fmt(n) + ' ฿';
+  set('kpiTotalBudget', fmtKPI(T.alloc));
+  set('kpiTotalReserved', fmtKPI(T.R));
+  set('kpiReservedPct', 'กันแล้ว ' + pct(T.R, T.alloc).toFixed(1) + '% ของงบ');
+  set('kpiPipeline', fmtKPI(pipeline));
+  set('kpiPipelinePct', 'รอตัดยอด ' + pct(pipeline, T.alloc).toFixed(1) + '% ของงบ');
+  set('kpiTotalDeducted', fmtKPI(T.G));
+  set('kpiGfPct', 'เบิกจ่ายแล้ว ' + pct(T.G, T.alloc).toFixed(1) + '% (ตัดยอด+GF)');
+  set('kpiTotalRemaining', fmtKPI(remaining));
+  set('kpiRemainPct', 'ยังว่าง ' + pct(remaining, T.alloc).toFixed(1) + '% ของงบ');
+  set('kpiForecastYE', fmtKPI(yearEnd));
+  set('kpiForecastPct', 'คาดใช้ ' + pct(yearEnd, T.alloc).toFixed(1) + '% ของงบ');
+
+  // ---- 4. Insight ----
+  const targetPaceNow = T.alloc * (cur + 1) / 12;
+  const diff = T.G - targetPaceNow;
+  const risky = plans.filter(p => p.alloc > 0 && pct(p.ye, p.alloc) < 80).sort((a, b) => (b.alloc - b.ye) - (a.alloc - a.ye)).slice(0, 3);
+  const over = plans.filter(p => p.alloc > 0 && p.R > p.alloc);
+  const insightEl = document.getElementById('dashInsight');
+  if (insightEl) {
+    insightEl.innerHTML = `
+      <div style="font-size:12px; opacity:.85; margin-bottom:4px;">สรุปภาพรวม ณ เดือน ${DASH_FISCAL_TH[cur]} (เดือนที่ ${cur + 1} ของปีงบประมาณ)</div>
+      <div style="font-size:14px; font-weight:700; line-height:1.7; overflow-wrap:anywhere;">
+        เบิกจ่ายแล้ว ${pct(T.G, T.alloc).toFixed(1)}% เทียบเป้าเฉลี่ย ${(100 * (cur + 1) / 12).toFixed(1)}%
+        — <span style="background:rgba(255,255,255,.2); padding:1px 8px; border-radius:8px;">${diff >= 0 ? 'เร็วกว่าเป้า ' : 'ช้ากว่าเป้า '}${fmt0(Math.abs(diff))} ฿</span>
+      </div>
+      <div style="font-size:12.5px; opacity:.95; margin-top:6px; line-height:1.8; overflow-wrap:anywhere;">
+        • คาดสิ้นปีเบิกจ่ายได้ <b>${fmt0(yearEnd)} ฿ (${pct(yearEnd, T.alloc).toFixed(1)}%)</b> เหลือไม่ได้ใช้ประมาณ <b>${fmt0(Math.max(0, T.alloc - yearEnd))} ฿</b><br>
+        • ค้างท่อ ${fmt0(pipeline)} ฿ รอตัดยอด/ลง GF — ควรเร่งติดตาม<br>
+        ${risky.length ? '• แผนเสี่ยงงบเหลือ: ' + risky.map(p => `${p.name} (คาดใช้ ${pct(p.ye, p.alloc).toFixed(0)}%)`).join(', ') + '<br>' : ''}
+        ${over.length ? '• ⚠️ กันเงินเกินงบ: ' + over.map(p => p.name).join(', ') : ''}
+      </div>`;
+  }
+
+  // ---- 5. กราฟรายเดือน ----
+  const cumActual = [], cumFc = [], target = [];
+  let ca = 0, cf = 0;
+  for (let i = 0; i < 12; i++) {
+    ca += gfActual[i];
+    cf += gfActual[i] + gfForecast[i];
+    cumActual.push(i <= cur ? ca : null);
+    cumFc.push(i >= cur ? cf : null);
+    target.push(T.alloc * (i + 1) / 12);
+  }
+  const ctxTrend = document.getElementById('monthlyTrendChart');
+  if (ctxTrend) {
+    if (monthlyTrendChart) monthlyTrendChart.destroy();
+    monthlyTrendChart = new Chart(ctxTrend, {
+      type: 'bar',
+      data: {
+        labels: DASH_FISCAL_TH,
+        datasets: [
+          { type: 'bar', label: 'GF จริง/เดือน', data: gfActual.map((v, i) => i <= cur ? v : null), backgroundColor: '#10b981', borderRadius: 4, yAxisID: 'y', order: 3 },
+          { type: 'bar', label: 'GF คาดการณ์/เดือน', data: gfForecast.map((v, i) => i > cur ? v : null), backgroundColor: 'rgba(59,130,246,0.45)', borderColor: '#3b82f6', borderWidth: 1, borderRadius: 4, yAxisID: 'y', order: 3 },
+          { type: 'bar', label: 'กันเงินใหม่/เดือน', data: resNew.map((v, i) => i <= cur ? v : null), backgroundColor: 'rgba(245,158,11,0.55)', borderRadius: 4, yAxisID: 'y', order: 3 },
+          { type: 'line', label: 'สะสมจริง', data: cumActual, borderColor: '#059669', backgroundColor: '#059669', borderWidth: 3, tension: 0.25, pointRadius: 3, yAxisID: 'y1', order: 1 },
+          { type: 'line', label: 'สะสมคาดการณ์', data: cumFc, borderColor: '#2563eb', borderDash: [6, 5], borderWidth: 3, tension: 0.25, pointRadius: 3, yAxisID: 'y1', order: 1 },
+          { type: 'line', label: 'เป้าสะสม (เฉลี่ยรายเดือน)', data: target, borderColor: '#94a3b8', borderDash: [2, 4], borderWidth: 2, pointRadius: 0, yAxisID: 'y1', order: 2 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt0(c.parsed.y)} ฿` } }
+        },
+        scales: {
+          x: { ticks: { autoSkip: false, font: { size: 10 } } },
+          y: { beginAtZero: true, position: 'left', ticks: { callback: v => fmtM(v), font: { size: 10 } }, title: { display: true, text: 'รายเดือน', font: { size: 10 } } },
+          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: v => fmtM(v), font: { size: 10 } }, title: { display: true, text: 'สะสม', font: { size: 10 } } }
         }
       }
     });
-    
-    planReservedData.push(pReserved);
-    planDeductedData.push(pDeducted);
-    planRemainingData.push(alloc - (pReserved + pDeducted));
-    
-    totalReserved += pReserved;
-    totalDeducted += pDeducted;
-  });
+  }
 
-  const totalRemaining = totalAllocated - (totalReserved + totalDeducted);
+  // ---- 6. รายไตรมาส ----
+  const qNames = ['ไตรมาส 1 (ต.ค.–ธ.ค.)', 'ไตรมาส 2 (ม.ค.–มี.ค.)', 'ไตรมาส 3 (เม.ย.–มิ.ย.)', 'ไตรมาส 4 (ก.ค.–ก.ย.)'];
+  const qActual = [0, 0, 0, 0], qFc = [0, 0, 0, 0];
+  for (let i = 0; i < 12; i++) {
+    const q = Math.floor(i / 3);
+    qActual[q] += i <= cur ? gfActual[i] : 0;
+    qFc[q] += i > cur ? gfForecast[i] : 0;
+  }
+  const qTarget = T.alloc / 4;
+  const curQ = Math.floor(cur / 3);
+  const qEl = document.getElementById('quarterTable');
+  if (qEl) {
+    let h = `<table style="width:100%; border-collapse:collapse; table-layout:fixed; font-size:11px;">
+      <thead><tr style="background:#f1f5f9; color:#475569;">
+        <th style="padding:6px; text-align:left;">ไตรมาส</th><th style="padding:6px; text-align:right;">จริง</th>
+        <th style="padding:6px; text-align:right;">คาดการณ์</th><th style="padding:6px; text-align:right;">% ของงบ</th><th style="padding:6px; text-align:center;">เทียบเป้า</th></tr></thead><tbody>`;
+    for (let q = 0; q < 4; q++) {
+      const tot = qActual[q] + qFc[q];
+      const ratio = qTarget > 0 ? tot / qTarget : 0;
+      const badge = q > curQ || (q === curQ && qFc[q] > 0)
+        ? (ratio >= 0.9 ? '<span style="color:#15803d;">✓ ตามเป้า</span>' : '<span style="color:#b45309;">▼ ต่ำกว่าเป้า</span>')
+        : (ratio >= 0.9 ? '<span style="color:#15803d;">✓ ถึงเป้า</span>' : '<span style="color:#b91c1c;">✗ ไม่ถึงเป้า</span>');
+      h += `<tr style="border-bottom:1px solid #e2e8f0; ${q === curQ ? 'background:#eff6ff;' : ''}">
+        <td style="padding:6px;">Q${q + 1}${q === curQ ? ' ◀' : ''}</td>
+        <td style="padding:6px; text-align:right;">${fmt0(qActual[q])}</td>
+        <td style="padding:6px; text-align:right; color:#2563eb;">${fmt0(qFc[q])}</td>
+        <td style="padding:6px; text-align:right;">${pct(tot, T.alloc).toFixed(1)}%</td>
+        <td style="padding:6px 3px; text-align:center; font-size:10px; word-break:break-word;">${badge}</td></tr>`;
+    }
+    h += `</tbody></table><div style="font-size:11px; color:#94a3b8; margin-top:6px;">เป้าไตรมาสละ ${fmt0(qTarget)} ฿ (25% ของงบ)</div>`;
+    qEl.innerHTML = h;
+  }
+  const ctxQ = document.getElementById('quarterChart');
+  if (ctxQ) {
+    if (quarterChart) quarterChart.destroy();
+    quarterChart = new Chart(ctxQ, {
+      type: 'bar',
+      data: {
+        labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+        datasets: [
+          { type: 'bar', label: 'จริง', data: qActual, backgroundColor: '#10b981', stack: 's', borderRadius: 4 },
+          { type: 'bar', label: 'คาดการณ์', data: qFc, backgroundColor: 'rgba(59,130,246,0.5)', stack: 's', borderRadius: 4 },
+          { type: 'line', label: 'เป้า', data: [qTarget, qTarget, qTarget, qTarget], borderColor: '#ef4444', borderDash: [5, 4], borderWidth: 2, pointRadius: 0 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt0(c.parsed.y)} ฿` } } },
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => fmtM(v) } } }
+      }
+    });
+  }
 
-  // Update KPI UI
-  const fmtKPI = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ฿';
-  if(document.getElementById('kpiTotalBudget')) document.getElementById('kpiTotalBudget').innerText = fmtKPI(totalAllocated);
-  if(document.getElementById('kpiTotalReserved')) document.getElementById('kpiTotalReserved').innerText = fmtKPI(totalReserved);
-  if(document.getElementById('kpiTotalDeducted')) document.getElementById('kpiTotalDeducted').innerText = fmtKPI(totalDeducted);
-  if(document.getElementById('kpiTotalRemaining')) document.getElementById('kpiTotalRemaining').innerText = fmtKPI(totalRemaining);
+  // ---- 7. ตารางคาดการณ์รายแผน ----
+  const pfEl = document.getElementById('planForecastTable');
+  if (pfEl) {
+    const fmL = n => (n / 1000000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let h = `<table style="width:100%; table-layout:fixed; border-collapse:collapse; font-size:11px;">
+      <thead><tr style="background:#f1f5f9; color:#475569;">
+        <th style="padding:5px 3px; word-break:break-word; text-align:left;">แผนงาน</th><th style="padding:5px 3px; word-break:break-word; text-align:right;">งบ</th>
+        <th style="padding:5px 3px; word-break:break-word; text-align:right;">กันแล้ว</th><th style="padding:5px 3px; word-break:break-word; text-align:right;">GF แล้ว</th>
+        <th style="padding:5px 3px; word-break:break-word; text-align:right;">คาดสิ้นปี</th><th style="padding:5px 3px; word-break:break-word; text-align:right;">% คาดใช้</th>
+        <th style="padding:5px 3px; word-break:break-word; text-align:right;">คาดเหลือ</th><th style="padding:5px 3px; word-break:break-word; text-align:center;">สถานะ</th></tr></thead><tbody>`;
+    plans.filter(p => p.alloc > 0 || p.R > 0).forEach(p => {
+      const yp = pct(p.ye, p.alloc);
+      let st = '<span style="background:#dcfce7; color:#166534; padding:1px 5px; border-radius:8px; white-space:normal;">ปกติ</span>';
+      if (p.R > p.alloc) st = '<span style="background:#fee2e2; color:#991b1b; padding:1px 5px; border-radius:8px; white-space:normal;">กันเกินงบ</span>';
+      else if (yp < 80) st = '<span style="background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:8px; white-space:normal;">เสี่ยงเหลือ</span>';
+      h += `<tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:5px 3px; word-break:break-word; font-weight:600;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${p.color}; margin-right:6px;"></span>${p.name}</td>
+        <td style="padding:5px 3px; word-break:break-word; text-align:right;">${fmL(p.alloc)}</td>
+        <td style="padding:5px 3px; word-break:break-word; text-align:right;">${fmL(p.R)}</td>
+        <td style="padding:5px 3px; word-break:break-word; text-align:right;">${fmL(p.G)}</td>
+        <td style="padding:5px 3px; word-break:break-word; text-align:right; color:#2563eb; font-weight:600;">${fmL(p.ye)}</td>
+        <td style="padding:5px 3px; word-break:break-word; text-align:right;">${yp.toFixed(1)}%</td>
+        <td style="padding:5px 3px; word-break:break-word; text-align:right;">${fmL(Math.max(0, p.alloc - p.ye))}</td>
+        <td style="padding:6px 3px; text-align:center; font-size:10px; word-break:break-word;">${st}</td></tr>`;
+    });
+    h += '</tbody></table><div style="font-size:10px; color:#94a3b8; margin-top:6px;">หน่วย: ล้านบาท</div>';
+    pfEl.innerHTML = h;
+  }
 
-  // Chart 1: Stacked Bar (Plan Status)
+  // ---- 8. สถานะรายแผน (stacked) + สัดส่วน (donut) ----
+  const labels = plans.map(p => p.name);
   const ctxStacked = document.getElementById('planStackedChart');
   if (ctxStacked) {
     if (planStackedChart) planStackedChart.destroy();
     planStackedChart = new Chart(ctxStacked, {
       type: 'bar',
       data: {
-        labels: planLabels,
+        labels,
         datasets: [
-          { label: 'เบิกจ่ายแล้ว', data: planDeductedData, backgroundColor: '#10b981' },
-          { label: 'กันเงิน/สัญญา', data: planReservedData, backgroundColor: '#f59e0b' },
-          { label: 'งบประมาณคงเหลือ', data: planRemainingData, backgroundColor: '#e2e8f0' }
+          { label: 'เบิกจ่ายแล้ว (GF)', data: plans.map(p => p.G), backgroundColor: '#10b981' },
+          { label: 'ค้างท่อ (กันแล้วยังไม่ GF)', data: plans.map(p => Math.max(0, p.R - p.G)), backgroundColor: '#f59e0b' },
+          { label: 'คงเหลือ (ยังไม่กัน)', data: plans.map(p => Math.max(0, p.alloc - p.R)), backgroundColor: '#e2e8f0' }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        scales: { 
-          x: { stacked: true },
-          y: { stacked: true, beginAtZero: true } 
-        },
-        plugins: { legend: { position: 'bottom' } }
+        scales: { x: { stacked: true, ticks: { autoSkip: false, maxRotation: 40, minRotation: 0, font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => fmtM(v) } } },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, padding: 10 } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt0(c.parsed.y)} ฿` } } }
       }
     });
   }
-
-  // Chart 2: Donut (Plan Proportions)
   const ctxDonut = document.getElementById('planDonutChart');
   if (ctxDonut) {
     if (planDonutChart) planDonutChart.destroy();
     planDonutChart = new Chart(ctxDonut, {
       type: 'doughnut',
-      data: {
-        labels: planLabels,
-        datasets: [{
-          data: planAllocatedData,
-          backgroundColor: planColors,
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } },
-        cutout: '65%'
-      }
+      data: { labels, datasets: [{ data: plans.map(p => p.alloc), backgroundColor: plans.map(p => p.color), borderWidth: 1 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 }, padding: 8 } } }, cutout: '62%' }
     });
   }
 
-  // Chart 3: Category Top 5 (Horizontal Bar)
-  const catMap = {};
-  cache.entries.forEach(e => {
-    if (e.colF && e.colF.toString().includes('ยกเลิก')) return;
-    const used = parseSafeFloat(e.amountDeduct || e.amount || 0);
-    if (used > 0 && e.catCode) {
-      if (!catMap[e.catCode]) catMap[e.catCode] = 0;
-      catMap[e.catCode] += used;
-    }
-  });
-
-  const sortedCats = Object.keys(catMap).map(k => ({ name: k, val: catMap[k] })).sort((a,b) => b.val - a.val).slice(0, 5);
-  
+  // ---- 9. Top 5 หมวด (ยอดกันเงินสุทธิ) ----
+  const sortedCats = Object.keys(catMap).map(k => ({ name: k, val: catMap[k] })).filter(c => c.val > 0).sort((a, b) => b.val - a.val).slice(0, 5);
   const ctxCat = document.getElementById('categoryBarChart');
   if (ctxCat) {
     if (categoryBarChart) categoryBarChart.destroy();
     categoryBarChart = new Chart(ctxCat, {
       type: 'bar',
-      data: {
-        labels: sortedCats.map(c => c.name),
-        datasets: [{
-          label: 'ยอดเบิกจ่าย/กันเงิน',
-          data: sortedCats.map(c => c.val),
-          backgroundColor: '#8b5cf6',
-          borderRadius: 4
-        }]
-      },
+      data: { labels: sortedCats.map(c => c.name), datasets: [{ label: 'ยอดกันเงินสุทธิ (บาท)', data: sortedCats.map(c => c.val), backgroundColor: '#8b5cf6', borderRadius: 4 }] },
       options: {
-        indexAxis: 'y',
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true } }
-      }
-    });
-  }
-
-  // Chart 4: Monthly Trend (Line Cumulative)
-  const monthMap = {};
-  cache.entries.forEach(e => {
-    if (e.colF && e.colF.toString().includes('ยกเลิก')) return;
-    const deduct = parseSafeFloat(e.amountDeduct || 0);
-    if (deduct > 0 && e.date) {
-      const mMatch = e.date.toString().match(/^(\d{4}-\d{2})/);
-      if (mMatch) {
-        const m = mMatch[1];
-        if (!monthMap[m]) monthMap[m] = 0;
-        monthMap[m] += deduct;
-      }
-    }
-  });
-
-  const sortedMonths = Object.keys(monthMap).sort();
-  let cumulative = 0;
-  const trendData = sortedMonths.map(m => {
-    cumulative += monthMap[m];
-    return cumulative;
-  });
-
-  const ctxTrend = document.getElementById('monthlyTrendChart');
-  if (ctxTrend) {
-    if (monthlyTrendChart) monthlyTrendChart.destroy();
-    monthlyTrendChart = new Chart(ctxTrend, {
-      type: 'line',
-      data: {
-        labels: sortedMonths,
-        datasets: [{
-          label: 'เบิกจ่ายสะสม (บาท)',
-          data: trendData,
-          borderColor: '#f43f5e',
-          backgroundColor: 'rgba(244, 63, 94, 0.1)',
-          borderWidth: 3,
-          fill: true,
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } },
-        scales: { y: { beginAtZero: true } }
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${fmt0(c.parsed.x)} ฿` } } },
+        scales: { x: { beginAtZero: true, ticks: { callback: v => fmtM(v) } } }
       }
     });
   }
 }
 
+
+// --- Dashboard: รายละเอียดเพิ่มเติม (หมวด / ฝ่าย / อายุค้างท่อ / รายเดือน) ---
+let dashCatChart = null;
+let dashDeptChart = null;
+let dashAgingChart = null;
+
+function dashParseThaiDate(s) {
+  if (!s) return null;
+  if (s instanceof Date) return isNaN(s) ? null : s;
+  const m = String(s).match(/(\d{1,2})\s+(\S+)\s+(\d{2,4})/);
+  if (!m) return null;
+  const fi = dashFiscalIdx(m[2]);
+  if (fi < 0) return null;
+  let y = parseInt(m[3], 10);
+  if (y < 100) y += 2500;
+  if (y > 2400) y -= 543;
+  return new Date(y, (fi + 9) % 12, parseInt(m[1], 10));
+}
+
+function renderDashboardDetails() {
+  if (!cache || !cache.plans || !cache.entries || typeof Chart === 'undefined') return;
+  const root = document.getElementById('enhancedDashboardContainer');
+  if (!root) return;
+
+  const fmt0 = n => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  const fmtM = n => (n / 1000000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' ล.';
+  const pct = (v, t) => t > 0 ? (v * 100 / t) : 0;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const isCancelled = e => e.colF && e.colF.toString().includes('ยกเลิก');
+  const card = 'background:white; padding:20px; border-radius:12px; border:1px solid var(--border); min-width:0; overflow:hidden;';
+  const th = 'padding:6px; background:#f1f5f9; color:#475569; font-weight:700;';
+  const grid = 'display:grid; grid-template-columns:repeat(auto-fit,minmax(440px,1fr)); gap:20px; margin-top:20px;';
+
+  const selPlan = window.dashPlanSel || 'ALL';
+  const plans = cache.plans.filter(p => selPlan === 'ALL' || p.shortName === selPlan);
+  const names = new Set(plans.map(p => p.shortName));
+  const entries = cache.entries.filter(e => names.has(e.plan) && !isCancelled(e));
+
+  // ---- หมวดงบ (ตามรายการงบของแผน) ----
+  const items = {};
+  plans.forEach(p => (p.budgets || []).forEach(b => {
+    const k = b.item;
+    if (!items[k]) items[k] = { item: k, group: b.group || 'อื่นๆ', alloc: 0, R: 0, G: 0 };
+    items[k].alloc += (b.allocated || 0) + (b.increase || 0) - (b.decrease || 0);
+  }));
+  // ---- ฝ่าย + ค้างท่อ ----
+  const depts = {};
+  const pending = [];
+  const now = new Date();
+  entries.forEach(e => {
+    const amt = parseSafeFloat(e.amount || 0);
+    const ded = parseSafeFloat(e.amountDeduct || 0);
+    const gf = !!e.colE && ded > 0;
+    if (items[e.catCode]) { items[e.catCode].R += amt; if (gf) items[e.catCode].G += ded; }
+    const d = (e.dept || 'ไม่ระบุ').toString().trim() || 'ไม่ระบุ';
+    if (!depts[d]) depts[d] = { R: 0, G: 0, pend: 0 };
+    depts[d].R += amt;
+    if (gf) depts[d].G += ded;
+    const open = amt - (gf ? ded : 0);
+    if (amt > 0 && open > 0) {
+      depts[d].pend += open;
+      const dt = dashParseThaiDate(e.date);
+      const days = dt ? Math.max(0, Math.floor((now - dt) / 86400000)) : -1;
+      pending.push({ id: e.id, dept: d, name: e.name, desc: e.desc, open, days, stage: ded > 0 ? 'รอ GF' : 'ยังไม่ตัดยอด', plan: e.plan });
+    }
+  });
+
+  const itemList = Object.values(items).filter(x => x.alloc > 0 || x.R > 0).sort((a, b) => b.alloc - a.alloc);
+  const deptList = Object.keys(depts).map(k => ({ name: k, ...depts[k] })).sort((a, b) => b.R - a.R);
+
+  // ---- อายุค้างท่อ ----
+  const buckets = ['0–30 วัน', '31–60 วัน', '61–90 วัน', 'เกิน 90 วัน', 'ไม่ทราบวันที่'];
+  const bIdx = d => d < 0 ? 4 : d <= 30 ? 0 : d <= 60 ? 1 : d <= 90 ? 2 : 3;
+  const ageA = [0, 0, 0, 0, 0], ageB = [0, 0, 0, 0, 0];
+  pending.forEach(x => { (x.stage === 'รอ GF' ? ageB : ageA)[bIdx(x.days)] += x.open; });
+  const pendTotal = pending.reduce((a, b) => a + b.open, 0);
+  const old90 = ageA[3] + ageB[3];
+  const known = pending.filter(x => x.days >= 0);
+  const avgDays = known.length ? known.reduce((a, b) => a + b.days, 0) / known.length : 0;
+  const top = pending.slice().sort((a, b) => b.open - a.open).slice(0, 10);
+
+  // ---- รายเดือน (ใช้ผลจากกราฟหลัก) ----
+  const st = window.dashState || { gfActual: [], gfForecast: [], resNew: [], cur: 0, alloc: 0 };
+  let cumR = 0, cumG = 0;
+  let monthRows = '';
+  for (let i = 0; i < 12; i++) {
+    const isF = i > st.cur;
+    const g = isF ? (st.gfForecast[i] || 0) : (st.gfActual[i] || 0);
+    const r = isF ? 0 : (st.resNew[i] || 0);
+    cumR += r; cumG += g;
+    monthRows += `<tr style="border-bottom:1px solid #e2e8f0; ${i === st.cur ? 'background:#eff6ff;' : ''}">
+      <td style="padding:5px 6px;">${DASH_FISCAL_TH[i]}${i === st.cur ? ' ◀' : ''}</td>
+      <td style="padding:5px 6px; text-align:right;">${isF ? '-' : fmt0(r)}</td>
+      <td style="padding:5px 6px; text-align:right; color:${isF ? '#2563eb' : '#166534'}; font-weight:600;">${fmt0(g)}${isF ? ' *' : ''}</td>
+      <td style="padding:5px 6px; text-align:right;">${fmt0(cumG)}</td>
+      <td style="padding:5px 6px; text-align:right;">${pct(cumG, st.alloc).toFixed(1)}%</td></tr>`;
+  }
+
+  const catRows = itemList.map(x => {
+    const pipe = Math.max(0, x.R - x.G), remain = x.alloc - x.R;
+    return `<tr style="border-bottom:1px solid #e2e8f0;">
+      <td style="padding:5px 6px; white-space:normal; word-break:break-word;">${esc(x.item)}</td>
+      <td style="padding:5px 6px; text-align:right;">${fmt0(x.alloc)}</td>
+      <td style="padding:5px 6px; text-align:right;">${fmt0(x.R)}</td>
+      <td style="padding:5px 6px; text-align:right; color:#b45309;">${fmt0(pipe)}</td>
+      <td style="padding:5px 6px; text-align:right; color:#166534;">${fmt0(x.G)}</td>
+      <td style="padding:5px 6px; text-align:right; color:${remain < 0 ? '#b91c1c' : 'inherit'};">${fmt0(remain)}</td>
+      <td style="padding:5px 6px; text-align:right;">${pct(x.G, x.alloc).toFixed(1)}%</td></tr>`;
+  }).join('') || '<tr><td colspan="7" style="padding:12px; text-align:center; color:#94a3b8;">ไม่มีข้อมูล</td></tr>';
+
+  const topRows = top.map(x => `<tr style="border-bottom:1px solid #e2e8f0;">
+      <td style="padding:5px 6px;">${esc(x.id)}</td>
+      <td style="padding:5px 6px;">${esc(x.dept)}</td>
+      <td style="padding:5px 6px; max-width:220px; white-space:normal; word-break:break-word;">${esc((x.desc || x.name || '').toString().slice(0, 70))}</td>
+      <td style="padding:5px 6px; text-align:right; font-weight:600;">${fmt0(x.open)}</td>
+      <td style="padding:5px 6px; text-align:right; color:${x.days > 90 ? '#b91c1c' : 'inherit'};">${x.days >= 0 ? x.days : '-'}</td>
+      <td style="padding:5px 6px; font-size:10px;">${x.stage}</td></tr>`).join('') || '<tr><td colspan="6" style="padding:12px; text-align:center; color:#94a3b8;">ไม่มีรายการค้างท่อ</td></tr>';
+
+  let host = document.getElementById('dashExtra');
+  if (!host) { host = document.createElement('div'); host.id = 'dashExtra'; root.appendChild(host); }
+  host.innerHTML = `
+    <div style="${grid}">
+      <div style="${card}">
+        <h4 style="margin:0 0 4px 0; color:var(--primary-dark); font-size:15px;">การใช้งบแยกตามรายการงบ</h4>
+        <div style="font-size:11px; color:#94a3b8; margin-bottom:10px;">เขียว = เบิกจ่าย (GF) • ส้ม = ค้างท่อ • เทา = คงเหลือ (เรียงตามงบมากสุด 10 อันดับ)</div>
+        <div style="height:${Math.max(220, Math.min(10, itemList.length) * 34 + 60)}px; position:relative;"><canvas id="dashCatChart"></canvas></div>
+      </div>
+      <div style="${card}">
+        <h4 style="margin:0 0 4px 0; color:var(--primary-dark); font-size:15px;">แยกตามฝ่าย</h4>
+        <div style="font-size:11px; color:#94a3b8; margin-bottom:10px;">เปรียบเทียบยอดกันเงิน เบิกจ่ายแล้ว และค้างท่อของแต่ละฝ่าย</div>
+        <div style="height:300px; position:relative;"><canvas id="dashDeptChart"></canvas></div>
+      </div>
+    </div>
+    <div style="${grid}">
+      <div style="${card}">
+        <h4 style="margin:0 0 4px 0; color:var(--primary-dark); font-size:15px;">อายุยอดค้างท่อ</h4>
+        <div style="font-size:11px; color:#94a3b8; margin-bottom:10px;">ค้างท่อรวม ${fmt0(pendTotal)} ฿ • อายุเฉลี่ย ${avgDays.toFixed(0)} วัน • เกิน 90 วัน ${fmt0(old90)} ฿ (${pct(old90, pendTotal).toFixed(0)}%)</div>
+        <div style="height:260px; position:relative;"><canvas id="dashAgingChart"></canvas></div>
+      </div>
+      <div style="${card} overflow-x:auto;">
+        <h4 style="margin:0 0 10px 0; color:var(--primary-dark); font-size:15px;">10 รายการค้างท่อสูงสุด</h4>
+        <table style="width:100%; min-width:520px; border-collapse:collapse; font-size:11.5px;">
+          <thead><tr><th style="${th} text-align:left;">ID</th><th style="${th} text-align:left;">ฝ่าย</th><th style="${th} text-align:left;">รายการ</th><th style="${th} text-align:right;">ค้าง (฿)</th><th style="${th} text-align:right;">วัน</th><th style="${th} text-align:left;">สถานะ</th></tr></thead>
+          <tbody>${topRows}</tbody></table>
+      </div>
+    </div>
+    <div style="${grid}">
+      <div style="${card} overflow-x:auto;">
+        <h4 style="margin:0 0 10px 0; color:var(--primary-dark); font-size:15px;">รายละเอียดตามรายการงบ</h4>
+        <table style="width:100%; min-width:560px; border-collapse:collapse; font-size:11.5px;">
+          <thead><tr><th style="${th} text-align:left;">รายการ</th><th style="${th} text-align:right;">งบ</th><th style="${th} text-align:right;">กัน</th><th style="${th} text-align:right;">ค้างท่อ</th><th style="${th} text-align:right;">GF</th><th style="${th} text-align:right;">คงเหลือ</th><th style="${th} text-align:right;">% GF</th></tr></thead>
+          <tbody>${catRows}</tbody></table>
+      </div>
+      <div style="${card} overflow-x:auto;">
+        <h4 style="margin:0 0 10px 0; color:var(--primary-dark); font-size:15px;">ตารางรายเดือน (จริง + คาดการณ์)</h4>
+        <table style="width:100%; min-width:420px; border-collapse:collapse; font-size:11.5px;">
+          <thead><tr><th style="${th} text-align:left;">เดือน</th><th style="${th} text-align:right;">กันเงินใหม่</th><th style="${th} text-align:right;">GF</th><th style="${th} text-align:right;">GF สะสม</th><th style="${th} text-align:right;">% งบ</th></tr></thead>
+          <tbody>${monthRows}</tbody></table>
+        <div style="font-size:11px; color:#94a3b8; margin-top:6px;">* = ค่าคาดการณ์</div>
+      </div>
+    </div>`;
+
+  const tip = c => `${c.dataset.label}: ${fmt0(c.parsed.x != null && c.chart.options.indexAxis === 'y' ? c.parsed.x : c.parsed.y)} ฿`;
+  const top10 = itemList.slice(0, 10);
+  if (dashCatChart) dashCatChart.destroy();
+  dashCatChart = new Chart(document.getElementById('dashCatChart'), {
+    type: 'bar',
+    data: {
+      labels: top10.map(x => x.item.length > 28 ? x.item.slice(0, 27) + '…' : x.item),
+      datasets: [
+        { label: 'เบิกจ่าย (GF)', data: top10.map(x => x.G), backgroundColor: '#10b981' },
+        { label: 'ค้างท่อ', data: top10.map(x => Math.max(0, x.R - x.G)), backgroundColor: '#f59e0b' },
+        { label: 'คงเหลือ', data: top10.map(x => Math.max(0, x.alloc - x.R)), backgroundColor: '#e2e8f0' }
+      ]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: tip } } },
+      scales: { x: { stacked: true, ticks: { callback: v => fmtM(v), font: { size: 10 } } }, y: { stacked: true, ticks: { font: { size: 10 } } } }
+    }
+  });
+  if (dashDeptChart) dashDeptChart.destroy();
+  dashDeptChart = new Chart(document.getElementById('dashDeptChart'), {
+    type: 'bar',
+    data: {
+      labels: deptList.map(d => d.name),
+      datasets: [
+        { label: 'กันเงิน', data: deptList.map(d => d.R), backgroundColor: '#6366f1' },
+        { label: 'เบิกจ่าย (GF)', data: deptList.map(d => d.G), backgroundColor: '#10b981' },
+        { label: 'ค้างท่อ', data: deptList.map(d => d.pend), backgroundColor: '#f59e0b' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: tip } } },
+      scales: { x: { ticks: { autoSkip: false, maxRotation: 40, font: { size: 10 } } }, y: { beginAtZero: true, ticks: { callback: v => fmtM(v), font: { size: 10 } } } }
+    }
+  });
+  if (dashAgingChart) dashAgingChart.destroy();
+  dashAgingChart = new Chart(document.getElementById('dashAgingChart'), {
+    type: 'bar',
+    data: {
+      labels: buckets,
+      datasets: [
+        { label: 'ยังไม่ตัดยอด', data: ageA, backgroundColor: '#f59e0b', stack: 's' },
+        { label: 'รอ GF', data: ageB, backgroundColor: '#8b5cf6', stack: 's' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: tip } } },
+      scales: { x: { stacked: true, ticks: { font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => fmtM(v), font: { size: 10 } } } }
+    }
+  });
+}
+
 function renderSummaryReport() {
-  renderDashboardCharts();
-  const tbody = document.getElementById('summaryTbody');
-  if (!currentPlan || !cache.plans || !cache.entries) {
-    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;">กรุณาเลือกแผน หรือรอโหลดข้อมูล</td></tr>';
-    return;
-  }
-
-  const p = cache.plans.find(x => x.shortName === currentPlan);
-  if (!p) {
-    tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;">ไม่พบข้อมูลตั้งค่าแผนงาน</td></tr>';
-    return;
-  }
-
-  // Initialize aggregation objects
-  const data = {};
-  p.budgets.forEach(b => {
-    data[b.item] = {
-      allocated: b.allocated || 0,
-      increase: b.increase || 0,
-      decrease: b.decrease || 0,
-      group: b.group || 'อื่นๆ',
-      reserveNonPO: 0,
-      reservePO: 0,
-      deductPO: 0,
-      deductTotal: 0,
-      gfTotal: 0
-    };
-  });
-
-  // Aggregate transactions
-  cache.entries.filter(e => e.plan === currentPlan && e.catCode).forEach(e => {
-    const item = data[e.catCode];
-    if (!item) return;
-
-    const isCancelled = (e.colF && e.colF.toString().includes("ยกเลิก"));
-    if (isCancelled) return;
-
-    const isPO = ((e.type && e.type.toString().toUpperCase() === 'PO') || (e.colF && e.colF.toString().toUpperCase() === 'PO'));
-    const amt = parseSafeFloat(e.amount);
-    const deduct = parseSafeFloat(e.amountDeduct);
-    const hasGF = !!e.colE;
-    const gfMonthFilter = document.getElementById('gfMonthFilter').value;
-
-    if (isPO) {
-      item.reservePO += amt;
-      item.deductPO += deduct;
-    } else {
-      item.reserveNonPO += amt;
-    }
-
-    item.deductTotal += deduct;
-    if (hasGF && (!gfMonthFilter || e.month === gfMonthFilter)) {
-      item.gfTotal += deduct;
-    }
-  });
-
-  let html = '';
-  let currentGroup = '';
-
-  // Totals
-  const gt = {
-    alloc: 0, afterAdj: 0, resNonPO: 0, po: 0, poDeduct: 0, poRemain: 0,
-    deductTotal: 0, gfTotal: 0, pipeline: 0, remain: 0
-  };
-
-  let grp = {
-    alloc: 0, afterAdj: 0, resNonPO: 0, po: 0, poDeduct: 0, poRemain: 0,
-    deductTotal: 0, gfTotal: 0, pipeline: 0, remain: 0
-  };
-
-  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtPct = (val, total) => total > 0 ? (val * 100 / total).toFixed(2) + '%' : '0.00%';
-
-  const renderGroupRow = (gName, sums) => {
-    return `<tr style="background:#eef2ff; font-weight:bold;">
-          <td></td>
-          <td>รวม ${gName}</td>
-          <td style="text-align:right;">${fmt(sums.alloc)}</td>
-          <td style="text-align:right;">${fmt(sums.afterAdj)}</td>
-          <td style="text-align:right;">${fmt(sums.resNonPO)}</td>
-          <td style="text-align:right;">${fmt(sums.po)}</td>
-          <td style="text-align:right;">${fmt(sums.poDeduct)}</td>
-          <td style="text-align:right;">${fmt(sums.poRemain)}</td>
-          <td style="text-align:right; color:var(--primary-dark);">${fmt(sums.deductTotal)}</td>
-          <td style="text-align:right; color:#166534;">${fmt(sums.gfTotal)}</td>
-          <td style="text-align:right;">${fmt(sums.pipeline)}</td>
-          <td style="text-align:right; color:${sums.remain < 0 ? 'red' : 'inherit'};">${fmt(sums.remain)}</td>
-          <td style="text-align:right;">${fmtPct(sums.gfTotal, sums.afterAdj)}</td>
-        </tr>`;
-  };
-
-  let rowIndex = 1;
-  p.budgets.forEach(b => {
-    const item = data[b.item];
-    if (b.group !== currentGroup) {
-      if (currentGroup !== '') {
-        html += renderGroupRow(currentGroup, grp);
-      }
-      currentGroup = b.group;
-      grp = { alloc: 0, afterAdj: 0, resNonPO: 0, po: 0, poDeduct: 0, poRemain: 0, deductTotal: 0, gfTotal: 0, pipeline: 0, remain: 0 };
-      html += `<tr style="background:#f8fafc;"><td colspan="13" style="font-weight:800; color:#475569;">${b.group}</td></tr>`;
-    }
-
-    const afterAdj = item.allocated + item.increase - item.decrease;
-    const poRemain = item.reservePO - item.deductPO;
-    // ค้างท่อ = (เงินทดรอง + สัญญา PO) - เบิกจ่ายลดยอด
-    const pipeline = (item.reserveNonPO + item.reservePO) - item.deductTotal;
-    // งบประมาณคงเหลือ = หลังปรับแผน - (เบิกจ่ายลดยอด + ค้างท่อ) => ก็คือ หลังปรับแผน - เงินกันรวม
-    const remain = afterAdj - (item.reserveNonPO + item.reservePO);
-
-    grp.alloc += item.allocated; grp.afterAdj += afterAdj; grp.resNonPO += item.reserveNonPO;
-    grp.po += item.reservePO; grp.poDeduct += item.deductPO; grp.poRemain += poRemain;
-    grp.deductTotal += item.deductTotal; grp.gfTotal += item.gfTotal; grp.pipeline += pipeline; grp.remain += remain;
-
-    gt.alloc += item.allocated; gt.afterAdj += afterAdj; gt.resNonPO += item.reserveNonPO;
-    gt.po += item.reservePO; gt.poDeduct += item.deductPO; gt.poRemain += poRemain;
-    gt.deductTotal += item.deductTotal; gt.gfTotal += item.gfTotal; gt.pipeline += pipeline; gt.remain += remain;
-
-    html += `<tr style="transition:all 0.2s; border-bottom: 1px solid #e2e8f0;">
-          <td style="text-align:center;">${rowIndex++}</td>
-          <td style="padding-left:16px;">${b.item}</td>
-          <td style="text-align:right;">${fmt(item.allocated)}</td>
-          <td style="text-align:right; font-weight:600;">${fmt(afterAdj)}</td>
-          <td style="text-align:right;">${fmt(item.reserveNonPO)}</td>
-          <td style="text-align:right;">${fmt(item.reservePO)}</td>
-          <td style="text-align:right;">${fmt(item.deductPO)}</td>
-          <td style="text-align:right;">${fmt(poRemain)}</td>
-          <td style="text-align:right; color:var(--primary-dark);">${fmt(item.deductTotal)}</td>
-          <td style="text-align:right; color:#166534; font-weight:600;">${fmt(item.gfTotal)}</td>
-          <td style="text-align:right; color:#ca8a04;">${fmt(pipeline)}</td>
-          <td style="text-align:right; color:${remain < 0 ? 'red' : 'inherit'};">${fmt(remain)}</td>
-          <td style="text-align:right; font-weight:600;">${fmtPct(item.gfTotal, afterAdj)}</td>
-        </tr>`;
-  });
-
-  if (currentGroup !== '') {
-    html += renderGroupRow(currentGroup, grp);
-  }
-
-  // Grand Total
-  html += `<tr style="background:#1e293b; color:white; font-weight:bold;">
-        <td colspan="2" style="text-align:center; color:white;">รวมทั้งสิ้น</td>
-        <td style="text-align:right; color:white;">${fmt(gt.alloc)}</td>
-        <td style="text-align:right; color:white;">${fmt(gt.afterAdj)}</td>
-        <td style="text-align:right; color:white;">${fmt(gt.resNonPO)}</td>
-        <td style="text-align:right; color:white;">${fmt(gt.po)}</td>
-        <td style="text-align:right; color:white;">${fmt(gt.poDeduct)}</td>
-        <td style="text-align:right; color:white;">${fmt(gt.poRemain)}</td>
-        <td style="text-align:right; color:#93c5fd;">${fmt(gt.deductTotal)}</td>
-        <td style="text-align:right; color:#86efac;">${fmt(gt.gfTotal)}</td>
-        <td style="text-align:right; color:#fde047;">${fmt(gt.pipeline)}</td>
-        <td style="text-align:right; color:${gt.remain < 0 ? '#fca5a5' : 'white'};">${fmt(gt.remain)}</td>
-        <td style="text-align:right; color:white;">${fmtPct(gt.gfTotal, gt.afterAdj)}</td>
-      </tr>`;
-
-  tbody.innerHTML = html;
+  try { renderDashboardCharts(); renderDashboardDetails(); } catch (err) { console.error('Dashboard error:', err); }
 }
 
 
