@@ -5,6 +5,10 @@ const STAMP_SETTINGS_GID = 1243086150;
 function doGet(e) {
   try {
     const action = e.parameter.action;
+    // ===== สแกนเอกสารกันเงินด้วยมือถือ (ดู ScanReserve.gs) =====
+    if (action === 'scan') return scan_page(e.parameter.s);
+    if (action === 'scan_status') return scan_json_(scan_status(e.parameter.s));
+    if (action === 'scan_image') return scan_json_(scan_image(e.parameter.s, e.parameter.f));
     if (action === 'getInitialData') return ContentService.createTextOutput(JSON.stringify(budget_getInitialData())).setMimeType(ContentService.MimeType.JSON);
     if (action === 'getBuranakanData') return ContentService.createTextOutput(JSON.stringify(budget_getBuranakanData(e.parameter.planKey))).setMimeType(ContentService.MimeType.JSON);
     if (action === 'gf_getSheetData') return ContentService.createTextOutput(JSON.stringify(gf_getSheetData())).setMimeType(ContentService.MimeType.JSON);
@@ -42,6 +46,8 @@ function doPost(e) {
     else if (action === 'gf_updateExtra') res = gf_updateExtra(params.data);
     else if (action === 'foreign_update') res = foreign_update(params.data);
     else if (action === 'foreign_delete') res = foreign_delete(params.data);
+    else if (action === 'scan_create') res = scan_create(params.data);
+    else if (action === 'scan_retry') res = scan_retry(params.data);
 
     return ContentService.createTextOutput(JSON.stringify(res || { error: 'Action not found' })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) { return ContentService.createTextOutput(JSON.stringify({ error: err.message })).setMimeType(ContentService.MimeType.JSON); }

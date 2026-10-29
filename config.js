@@ -1,4 +1,4 @@
 const CONFIG = {
   // นำ URL ที่ได้จากการ Deploy Google Apps Script มาใส่ที่นี่
-  API_URL: "https://script.google.com/macros/s/AKfycbyQ2VcWPAs3rnbOaMD5PDfpJDG5XLl5gR6jUJ4vIo6qy8Wih_I4q1-Aq6p8lFIlkvHcpw/exec",
+  API_URL: "https://script.google.com/macros/s/AKfycbzZ14Ug3vkOpOl7wA3Ksqb42ZgmbmMkOUXeHslyOwpSUcnn8EN_QCEVPosNOPPDmgqo7Q/exec",
 };
