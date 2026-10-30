@@ -859,7 +859,7 @@ function createPreviewHTML(e, isError = false, errorMsg = "") {
             </div>
             <div style="background:var(--primary-light); padding:12px; border-radius:12px; border:1px solid var(--primary);">
               <label style="font-size:10px; color:var(--primary-dark)">งบประมาณกั้นไว้</label>
-              <div style="font-weight:800; font-size:16px; color:var(--primary-dark); margin-top:4px;">${fmt(e.amount)}</div>
+              <div style="font-weight:800; font-size:16px; color:var(--primary-dark); margin-top:4px;">${fmt(e.amount)}${(() => { const r = getPoRemain(e); return r === null ? '' : ` <span style="color:#dc2626; font-size:13px; white-space:nowrap;">(คงเหลือ ${r.toLocaleString()})</span>`; })()}</div>
             </div>
             <div style="background:#fff7ed; padding:12px; border-radius:12px; border:1px solid #fdba74;">
               <label style="font-size:10px; color:#9a3412">ใช้จริง/คืนเงิน</label>
@@ -879,6 +879,17 @@ function createPreviewHTML(e, isError = false, errorMsg = "") {
             <span class="material-symbols-outlined" style="font-size:18px; vertical-align:middle; margin-right:4px;">warning</span> ${errorMsg}
           </div>` : ''}
         </div>`;
+}
+
+// ยอดคงเหลือของ PO หลัก (เงินกัน - ตัดยอดย่อยทั้งหมด) ; คืน null ถ้าไม่ใช่ PO หลักที่มีรายการตัดยอดย่อย
+function getPoRemain(e) {
+  if (!cache || !cache.entries) return null;
+  const isPO = (e.type && e.type.toString().toUpperCase() === 'PO') || (e.colF && e.colF.toString().toUpperCase() === 'PO');
+  const idStr = String(e.id);
+  if (!isPO || idStr.includes('.')) return null;
+  const kids = cache.entries.filter(k => String(k.id).startsWith(idStr + '.'));
+  if (!kids.length) return null;
+  return (Number(e.amount) || 0) - kids.reduce((s, k) => s + (Number(k.amountDeduct) || 0), 0);
 }
 
 function omniSearch(val, view) {
@@ -2132,6 +2143,13 @@ function renderTable(q = "") {
     });
   }
 
+  // PO หลัก (ไม่มี .) ที่มีรายการตัดยอดย่อย: แสดงยอดคงเหลือ = เงินกัน - ตัดยอดย่อยทั้งหมด
+  const poRemainHtml = (e) => {
+    const remain = getPoRemain(e);
+    if (remain === null) return '';
+    return `<div style="font-size:10px; font-weight:700; color:#dc2626; white-space:nowrap; line-height:1.3;">(คงเหลือ ${remain.toLocaleString()})</div>`;
+  };
+
   const rowTpl = (e) => {
     const isCancelled = e.colF && e.colF.toString().includes("ยกเลิก");
     let bgStyle = isCancelled ? "background-color: #fef2f2; opacity: 0.8;" : "";
@@ -2154,7 +2172,7 @@ function renderTable(q = "") {
             ${e.desc || ''}
           </td>
           <td style="text-align:center; font-weight:700; color:#059669; font-size:12px;">${e.reserveNumber || '-'}</td>
-          <td class="amt-col" style="color:var(--primary-dark);">${Number(e.amount || 0).toLocaleString()}</td>
+          <td class="amt-col" style="color:var(--primary-dark);">${Number(e.amount || 0).toLocaleString()}${poRemainHtml(e)}</td>
           <td class="amt-col" style="color:#c2410c;">${Number(e.amountDeduct || 0).toLocaleString()}</td>
           <td style="white-space:nowrap; text-align:center;">
             ${e.colE ? `
