@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 
 <head>
@@ -1423,5 +1423,19 @@
   <script src="foreign.js?v=20261014-2210"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="scan.js?v=20261029-1545"></script>
+  <script>
+    // Deep link: .../finance70/#contracts -> เปิดหน้า "ระบบบริหารสัญญา" อัตโนมัติ
+    if (location.hash === '#contracts') {
+      let tries = 0;
+      const timer = setInterval(() => {
+        const nav = document.getElementById('nav-contracts');
+        const view = document.getElementById('view-contracts');
+        tries++;
+        if (nav && view && view.classList.contains('active')) { clearInterval(timer); return; }
+        if (nav && typeof setView === 'function') nav.click();
+        if (tries >= 20) clearInterval(timer);
+      }, 500);
+    }
+  </script>
 </body>
 </html>

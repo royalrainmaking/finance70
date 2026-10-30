@@ -103,13 +103,13 @@ function budget_findParentAndInsertIndex(idData, parentIdStr) {
   for (let i = 0; i < idData.length; i++) {
     const cur = idData[i][0].toString();
     if (cur === parentIdStr) { 
-      pIdx = i + 5; 
+      pIdx = i + DATA_START_ROW; 
       insAt = pIdx; 
     }
     if (cur.startsWith(parentIdStr + ".")) {
       const s = parseInt(cur.split(".")[1], 10); 
       if (s > mSub) mSub = s;
-      insAt = i + 5;
+      insAt = i + DATA_START_ROW;
     }
   }
   return { pIdx, insAt, nextSub: mSub + 1 };

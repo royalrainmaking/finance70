@@ -225,6 +225,7 @@ async function call(action, data = null) {
   } catch (e) {
     document.getElementById('loader').style.display = 'none';
     setStatus('error', 'ขัดข้อง: ' + e.message);
+    if (data && typeof Swal !== 'undefined') Swal.fire('เกิดข้อผิดพลาด', e.message, 'error');
     return null;
   }
 }
