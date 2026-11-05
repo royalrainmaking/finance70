@@ -2291,14 +2291,17 @@ function selectFromTable(id, evt) {
   document.getElementById('ctx-reserve-add').style.display = isLiquidated ? 'none' : 'flex';
   document.getElementById('ctx-edit').style.display = 'flex';
   document.getElementById('ctx-deduct-add').style.display = 'flex';
-  // เปลี่ยนจากกันเงินแบบปกติเป็น PO: แสดงเฉพาะรายการหลัก ที่ยังไม่เป็น PO และยังไม่ถูกตัดยอด
-  const ctxConvertPO = document.getElementById('ctx-convert-po');
-  if (ctxConvertPO) {
-    const isPOEntry = e && ((e.type && e.type.toString().toUpperCase() === 'PO') || (e.colF && e.colF.toString().trim().toUpperCase() === 'PO'));
-    const isMainRow = e && !String(e.id).includes('.') && !e.isContract && !e.isForeign && !/^(CT|FR)/i.test(String(e.id));
-    ctxConvertPO.style.display = (e && isMainRow && !isPOEntry && !isLiquidated) ? 'flex' : 'none';
+  // เปลี่ยนจากกันเงินแบบปกติเป็น PO / ยกเลิก PO (ใช้รายการหลัก แม้คลิกที่รายการย่อย)
+  {
+    const isVirtual = e && (e.isContract || e.isForeign || /^(CT|FR)/i.test(String(e.id)));
+    const mainE = e ? (cache.entries.find(x => String(x.id) === String(e.id).split('.')[0]) || e) : null;
+    const poFlag = v => !!v && v.toString().trim().toUpperCase().includes('PO');
+    const mainIsPO = mainE && (poFlag(mainE.type) || poFlag(mainE.colF));
+    const mainLiq = mainE && mainE.colF && mainE.colF.toString().trim() !== '' && !poFlag(mainE.colF);
+    const ctxConvertPO = document.getElementById('ctx-convert-po');
     const ctxConvertNormal = document.getElementById('ctx-convert-normal');
-    if (ctxConvertNormal) ctxConvertNormal.style.display = (e && isMainRow && isPOEntry && !isLiquidated) ? 'flex' : 'none';
+    if (ctxConvertPO) ctxConvertPO.style.display = (mainE && !isVirtual && !mainIsPO && !mainLiq) ? 'flex' : 'none';
+    if (ctxConvertNormal) ctxConvertNormal.style.display = (mainE && !isVirtual && mainIsPO) ? 'flex' : 'none';
   }
 
   // Position context menu near cursor
@@ -2346,7 +2349,8 @@ function clearTableFilters() {
 function doAction(act) {
   closeActionMenu();
   if (act === 'convert-normal') {
-    const e = cache.entries.find(x => x.id == selectedId);
+    const mainId = String(selectedId).split('.')[0];
+    const e = cache.entries.find(x => String(x.id) === mainId);
     if (!e) return;
     const subs = cache.entries.filter(x => String(x.id).startsWith(String(e.id) + '.'));
     // ถ้ามีการตัดยอดแบบ PO (รายการย่อยที่มียอดตัด) แล้ว ไม่ให้เปลี่ยนกลับ เพราะยอดจะคำนวณผิด
@@ -2354,7 +2358,7 @@ function doAction(act) {
     if (deductSubs.length > 0) {
       Swal.fire({
         icon: 'warning',
-        title: 'เปลี่ยนกลับไม่ได้',
+        title: 'ยกเลิก PO ไม่ได้',
         html: `รายการ #${e.id} มีการตัดยอดแบบ PO แล้ว ${deductSubs.length} รายการ (${deductSubs.map(x => '#' + x.id).join(', ')})<br>กรุณาลบรายการตัดยอดเหล่านั้นก่อน จึงจะเปลี่ยนกลับเป็นแบบปกติได้`,
         confirmButtonText: 'เข้าใจแล้ว',
         confirmButtonColor: '#d97706'
@@ -2362,7 +2366,7 @@ function doAction(act) {
       return;
     }
     Swal.fire({
-      title: 'เปลี่ยนกลับเป็นแบบปกติ?',
+      title: 'ยกเลิก PO?',
       html: `เปลี่ยนรายการ <b>#${e.id}</b> ${e.name ? '(' + e.name + ')' : ''}<br>จาก <b style="color:#d97706;">PO</b> กลับเป็น <b>กันเงินแบบปกติ</b> ใช่หรือไม่?` +
         (subs.length ? `<br><small style="color:#64748b;">รายการย่อย ${subs.length} รายการจะถูกเปลี่ยนเป็นแบบปกติด้วย</small>` : ''),
       icon: 'question',
@@ -2376,7 +2380,7 @@ function doAction(act) {
       for (const item of [e, ...subs]) {
         const upd = { id: item.id, type: 'Normal' };
         // บางรายการระบุ PO ไว้ในคอลัมน์ H ด้วย ให้ล้างออก
-        if (item.colF && item.colF.toString().trim().toUpperCase() === 'PO') upd.colF = '';
+        if (item.colF && item.colF.toString().trim().toUpperCase().includes('PO')) upd.colF = '';
         const res = await call('submitUpdate', upd);
         if (!res || !res.success) return;
       }
@@ -2387,7 +2391,8 @@ function doAction(act) {
   }
 
   if (act === 'convert-po') {
-    const e = cache.entries.find(x => x.id == selectedId);
+    const mainId = String(selectedId).split('.')[0];
+    const e = cache.entries.find(x => String(x.id) === mainId);
     if (!e) return;
     const subs = cache.entries.filter(x => String(x.id).startsWith(String(e.id) + '.'));
     Swal.fire({
