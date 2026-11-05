@@ -2291,6 +2291,13 @@ function selectFromTable(id, evt) {
   document.getElementById('ctx-reserve-add').style.display = isLiquidated ? 'none' : 'flex';
   document.getElementById('ctx-edit').style.display = 'flex';
   document.getElementById('ctx-deduct-add').style.display = 'flex';
+  // เปลี่ยนจากกันเงินแบบปกติเป็น PO: แสดงเฉพาะรายการหลัก ที่ยังไม่เป็น PO และยังไม่ถูกตัดยอด
+  const ctxConvertPO = document.getElementById('ctx-convert-po');
+  if (ctxConvertPO) {
+    const isPOEntry = e && ((e.type && e.type.toString().toUpperCase() === 'PO') || (e.colF && e.colF.toString().trim().toUpperCase() === 'PO'));
+    const isMainRow = e && !String(e.id).includes('.') && !e.isContract && !e.isForeign && !/^(CT|FR)/i.test(String(e.id));
+    ctxConvertPO.style.display = (e && isMainRow && !isPOEntry && !isLiquidated) ? 'flex' : 'none';
+  }
 
   // Position context menu near cursor
   ctxMenu.style.visibility = 'hidden';
@@ -2336,6 +2343,33 @@ function clearTableFilters() {
 
 function doAction(act) {
   closeActionMenu();
+  if (act === 'convert-po') {
+    const e = cache.entries.find(x => x.id == selectedId);
+    if (!e) return;
+    const subs = cache.entries.filter(x => String(x.id).startsWith(String(e.id) + '.'));
+    Swal.fire({
+      title: 'เปลี่ยนเป็น PO?',
+      html: `เปลี่ยนรายการ <b>#${e.id}</b> ${e.name ? '(' + e.name + ')' : ''}<br>จาก <b>กันเงินแบบปกติ</b> เป็น <b style="color:#d97706;">PO</b> ใช่หรือไม่?` +
+        (subs.length ? `<br><small style="color:#64748b;">รายการย่อย ${subs.length} รายการจะถูกเปลี่ยนเป็น PO ด้วย</small>` : ''),
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#d97706',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'ใช่, เปลี่ยนเป็น PO',
+      cancelButtonText: 'ยกเลิก'
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      const res = await call('submitUpdate', { id: e.id, type: 'PO' });
+      if (!res || !res.success) return;
+      for (const sub of subs) {
+        await call('submitUpdate', { id: sub.id, type: 'PO' });
+      }
+      showModal('สำเร็จ', `เปลี่ยนรายการ #${e.id} เป็น PO เรียบร้อยแล้ว`);
+      await init();
+    });
+    return;
+  }
+
   if (act === 'unassign-plan') {
     const e = cache.entries.find(x => x.id == selectedId);
     const planName = (e && e.plan) ? e.plan : 'แผนงาน';
