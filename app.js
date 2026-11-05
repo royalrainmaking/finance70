@@ -2297,6 +2297,8 @@ function selectFromTable(id, evt) {
     const isPOEntry = e && ((e.type && e.type.toString().toUpperCase() === 'PO') || (e.colF && e.colF.toString().trim().toUpperCase() === 'PO'));
     const isMainRow = e && !String(e.id).includes('.') && !e.isContract && !e.isForeign && !/^(CT|FR)/i.test(String(e.id));
     ctxConvertPO.style.display = (e && isMainRow && !isPOEntry && !isLiquidated) ? 'flex' : 'none';
+    const ctxConvertNormal = document.getElementById('ctx-convert-normal');
+    if (ctxConvertNormal) ctxConvertNormal.style.display = (e && isMainRow && isPOEntry && !isLiquidated) ? 'flex' : 'none';
   }
 
   // Position context menu near cursor
@@ -2343,6 +2345,47 @@ function clearTableFilters() {
 
 function doAction(act) {
   closeActionMenu();
+  if (act === 'convert-normal') {
+    const e = cache.entries.find(x => x.id == selectedId);
+    if (!e) return;
+    const subs = cache.entries.filter(x => String(x.id).startsWith(String(e.id) + '.'));
+    // ถ้ามีการตัดยอดแบบ PO (รายการย่อยที่มียอดตัด) แล้ว ไม่ให้เปลี่ยนกลับ เพราะยอดจะคำนวณผิด
+    const deductSubs = subs.filter(x => (parseFloat(x.amountDeduct) || 0) !== 0);
+    if (deductSubs.length > 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'เปลี่ยนกลับไม่ได้',
+        html: `รายการ #${e.id} มีการตัดยอดแบบ PO แล้ว ${deductSubs.length} รายการ (${deductSubs.map(x => '#' + x.id).join(', ')})<br>กรุณาลบรายการตัดยอดเหล่านั้นก่อน จึงจะเปลี่ยนกลับเป็นแบบปกติได้`,
+        confirmButtonText: 'เข้าใจแล้ว',
+        confirmButtonColor: '#d97706'
+      });
+      return;
+    }
+    Swal.fire({
+      title: 'เปลี่ยนกลับเป็นแบบปกติ?',
+      html: `เปลี่ยนรายการ <b>#${e.id}</b> ${e.name ? '(' + e.name + ')' : ''}<br>จาก <b style="color:#d97706;">PO</b> กลับเป็น <b>กันเงินแบบปกติ</b> ใช่หรือไม่?` +
+        (subs.length ? `<br><small style="color:#64748b;">รายการย่อย ${subs.length} รายการจะถูกเปลี่ยนเป็นแบบปกติด้วย</small>` : ''),
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#2563eb',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'ใช่, เปลี่ยนกลับเป็นแบบปกติ',
+      cancelButtonText: 'ยกเลิก'
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      for (const item of [e, ...subs]) {
+        const upd = { id: item.id, type: 'Normal' };
+        // บางรายการระบุ PO ไว้ในคอลัมน์ H ด้วย ให้ล้างออก
+        if (item.colF && item.colF.toString().trim().toUpperCase() === 'PO') upd.colF = '';
+        const res = await call('submitUpdate', upd);
+        if (!res || !res.success) return;
+      }
+      showModal('สำเร็จ', `เปลี่ยนรายการ #${e.id} กลับเป็นกันเงินแบบปกติเรียบร้อยแล้ว`);
+      await init();
+    });
+    return;
+  }
+
   if (act === 'convert-po') {
     const e = cache.entries.find(x => x.id == selectedId);
     if (!e) return;
