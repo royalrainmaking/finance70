@@ -2346,6 +2346,159 @@ function clearTableFilters() {
 
 // closeActionMenu is defined above (hides right-click context menu)
 
+// ============================================================
+// ตรวจสอบยอดเงินคงเหลือของแผน ก่อนอนุมัติจัดเข้าแผน (กันเงิน)
+// แยก 2 ก้อน: U17 = ค่าตอบแทน ใช้สอย และวัสดุ, U51 = ค่าสาธารณูปโภค
+// สูตรคงเหลือเดียวกับหน้าแผนการใช้จ่าย: งบหลังปรับ - เงินกัน - PO คงเหลือ - เบิกจ่ายลดยอด
+// ============================================================
+const BUDGET_POOLS = {
+  U17: { code: 'U17', name: 'ค่าตอบแทน ใช้สอย และวัสดุ' },
+  U51: { code: 'U51', name: 'ค่าสาธารณูปโภค (ระบุ)' }
+};
+
+function budgetPoolOfGroup(groupName) {
+  const g = (groupName || '').toString();
+  if (g.includes('สาธารณูปโภค')) return 'U51';
+  if (g.includes('ตอบแทน') || g.includes('ใช้สอย') || g.includes('วัสดุ')) return 'U17';
+  return null;
+}
+
+// หาว่าหมวด (catCode) ของรายการอยู่ก้อนไหน
+function budgetPoolOfCatCode(catCode, planKey) {
+  const code = (catCode || '').toString().trim();
+  if (!code) return null;
+  // 1) หมวดในหน้าปรับแผนของแผนนั้น
+  const p = cache && cache.plans ? cache.plans.find(x => x.shortName === planKey) : null;
+  if (p && p.budgets) {
+    const b = p.budgets.find(b => {
+      const k = (b.item || '').toString().trim();
+      return k === code || k.split(' -')[0].trim() === code || k.split('-')[0].trim() === code;
+    });
+    if (b) return budgetPoolOfGroup(b.group);
+  }
+  // 2) หมวดมาตรฐานของฟอร์มกันเงิน
+  if (typeof FIXED_CATEGORIES !== 'undefined') {
+    for (const [poolLabel, groups] of Object.entries(FIXED_CATEGORIES)) {
+      for (const grp of groups) {
+        if ((grp.options || []).some(o => (o.code || o.value) === code || o.text === code)) {
+          return budgetPoolOfGroup(poolLabel === 'สาธารณูปโภค' ? 'ค่าสาธารณูปโภค' : grp.label);
+        }
+      }
+    }
+  }
+  // 3) รหัสเก่า A1/B1/C1/D1
+  if (typeof PLAN_CATEGORIES !== 'undefined') {
+    const cfgs = [PLAN_CATEGORIES[planKey], PLAN_CATEGORIES['default']].filter(Boolean);
+    for (const cfg of cfgs) {
+      for (const grp of cfg) {
+        if ((grp.options || []).some(o => o.code === code || o.text === code || o.text.startsWith(code + ' '))) {
+          return budgetPoolOfGroup(grp.label);
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// คำนวณยอดงบ / ใช้ไป / คงเหลือ ของแต่ละก้อนในแผน
+function computePlanPoolBalances(planKey) {
+  const out = {};
+  Object.keys(BUDGET_POOLS).forEach(k => out[k] = { budget: 0, used: 0, remain: 0 });
+  const p = cache && cache.plans ? cache.plans.find(x => x.shortName === planKey) : null;
+  if (!p) return null;
+  const num = v => { const n = parseFloat((v ?? '').toString().replace(/,/g, '')); return isNaN(n) ? 0 : n; };
+
+  (p.budgets || []).forEach(b => {
+    const pool = budgetPoolOfGroup(b.group);
+    if (!pool) return;
+    out[pool].budget += num(b.allocated) + num(b.increase) - num(b.decrease);
+  });
+
+  (cache.entries || []).forEach(e => {
+    if (e.plan !== planKey) return;
+    if (e.id === undefined || e.id === null || e.id === '') return;
+    if (!e.date) return;
+    if (e.colF && e.colF.toString().includes('ยกเลิก')) return;
+    const pool = budgetPoolOfCatCode(e.catCode, planKey);
+    if (!pool) return;
+    const amt = num(e.amount), deduct = num(e.amountDeduct);
+    const hasH = !!(e.colF && e.colF.toString().trim());
+    const isPO = (e.type || '').toString().toUpperCase().includes('PO');
+    // เหมือนสูตรหน้าแผนการใช้จ่าย
+    if (!hasH) out[pool].used += amt;          // เงินกัน / สัญญา PO ที่ยังไม่ลดยอด
+    else if (!isPO) out[pool].used += deduct;  // เบิกจ่ายลดยอดแล้ว
+    // PO ที่ลดยอดแล้ว: ยอดอยู่ในตัว PO หลักแล้ว ไม่นับซ้ำ
+  });
+
+  Object.values(out).forEach(o => o.remain = o.budget - o.used);
+  return out;
+}
+
+// สร้างกล่องแสดงยอด (ใช้ใน popup ยืนยัน)
+// items = [{amount, catCode}] , catOverride = หมวดที่เลือกใหม่ (ถ้ามี)
+function buildBudgetCheckHtml(planKey, items, catOverride) {
+  const fmt = n => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (!planKey) {
+    return { ok: true, html: `<div style="font-size:12px; color:#64748b; padding:10px; border:1px dashed #cbd5e1; border-radius:8px;">เลือกแผนงานเพื่อดูยอดเงินคงเหลือ</div>` };
+  }
+  const bal = computePlanPoolBalances(planKey);
+  if (!bal) return { ok: true, html: '' };
+
+  const req = {}; let unknown = 0;
+  items.forEach(it => {
+    const code = catOverride || it.catCode;
+    const pool = budgetPoolOfCatCode(code, planKey);
+    const amt = parseFloat(it.amount) || 0;
+    if (pool) req[pool] = (req[pool] || 0) + amt; else unknown += amt;
+  });
+
+  let ok = true;
+  let rows = '';
+  Object.keys(req).forEach(pool => {
+    const b = bal[pool];
+    const after = b.remain - req[pool];
+    const enough = after >= 0;
+    if (!enough) ok = false;
+    const c = enough ? '#166534' : '#b91c1c';
+    rows += `
+      <div style="border:1px solid ${enough ? '#bbf7d0' : '#fecaca'}; background:${enough ? '#f0fdf4' : '#fef2f2'}; border-radius:8px; padding:10px 12px; margin-top:8px;">
+        <div style="font-weight:800; color:#1e293b; margin-bottom:6px;">${BUDGET_POOLS[pool].name} <span style="background:#1e3a8a; color:#fff; border-radius:4px; padding:1px 6px; font-size:10px; margin-left:4px;">${pool}</span></div>
+        <table style="width:100%; font-size:12px; border-collapse:collapse;">
+          <tr><td style="color:#475569;">งบหลังปรับแผน</td><td style="text-align:right;">${fmt(b.budget)}</td></tr>
+          <tr><td style="color:#475569;">กัน/เบิกไปแล้ว</td><td style="text-align:right;">${fmt(b.used)}</td></tr>
+          <tr><td style="color:#0f172a; font-weight:700;">เงินคงเหลือก่อนกัน</td><td style="text-align:right; font-weight:800;">${fmt(b.remain)}</td></tr>
+          <tr><td style="color:#d97706; font-weight:700;">กันครั้งนี้</td><td style="text-align:right; font-weight:800; color:#d97706;">- ${fmt(req[pool])}</td></tr>
+          <tr style="border-top:1px solid #cbd5e1;"><td style="color:${c}; font-weight:800; padding-top:4px;">คงเหลือหลังกัน</td><td style="text-align:right; font-weight:900; color:${c}; padding-top:4px; font-size:14px;">${fmt(after)}</td></tr>
+        </table>
+        ${enough ? '' : `<div style="margin-top:6px; color:#b91c1c; font-weight:700; font-size:12px;">⚠️ เงินไม่พอ ขาดอีก ${fmt(-after)} บาท</div>`}
+      </div>`;
+  });
+  if (unknown > 0) {
+    rows += `<div style="margin-top:8px; font-size:11px; color:#64748b;">* ยอด ${fmt(unknown)} บาท อยู่ในหมวดที่ไม่ใช่ U17/U51 จึงไม่ได้ตรวจยอด</div>`;
+  }
+  if (!rows) rows = `<div style="font-size:12px; color:#64748b;">เลือกหมวดงบประมาณเพื่อตรวจยอดเงินคงเหลือ</div>`;
+
+  const html = `
+    <div style="text-align:left; margin-top:14px;">
+      <div style="font-size:12px; font-weight:700; color:#1e293b;">ตรวจสอบเงินคงเหลือของแผน "${planKey}"</div>
+      ${rows}
+      ${ok ? '' : `<label style="display:flex; gap:6px; align-items:flex-start; margin-top:10px; font-size:12px; color:#b91c1c; font-weight:700; cursor:pointer;">
+        <input type="checkbox" id="swal-overbudget-ack" style="margin-top:2px;"> ทราบแล้วว่าเงินไม่พอ และยืนยันจะกันเงินต่อ</label>`}
+    </div>`;
+  return { ok, html };
+}
+
+// ใช้ใน preConfirm: ถ้าเงินไม่พอและยังไม่ติ๊กยืนยัน ให้แจ้งเตือน
+function budgetCheckBlocks(planKey, items, catOverride) {
+  if (!planKey) return false;
+  const r = buildBudgetCheckHtml(planKey, items, catOverride);
+  if (r.ok) return false;
+  const ack = document.getElementById('swal-overbudget-ack');
+  if (ack && ack.checked) return false;
+  Swal.showValidationMessage('เงินคงเหลือไม่พอ — ติ๊กยืนยันก่อนหากต้องการกันเงินต่อ');
+  return true;
+}
+
 function doAction(act) {
   closeActionMenu();
   if (act === 'convert-normal') {
@@ -2537,14 +2690,26 @@ function doAction(act) {
             ${catOptions}
           </select>
         </div>
+        <div id="swal-budget-check"></div>
       `,
       showCancelButton: true,
-      confirmButtonText: 'บันทึกอนุมัติ',
+      confirmButtonText: '✅ ยืนยันกันเงิน',
       cancelButtonText: 'ยกเลิก',
       confirmButtonColor: 'var(--primary)',
+      didOpen: () => {
+        const refresh = () => {
+          const plan = document.getElementById('swal-plan-select').value;
+          const catCode = document.getElementById('swal-cat-select').value;
+          document.getElementById('swal-budget-check').innerHTML = buildBudgetCheckHtml(plan, items, catCode).html;
+        };
+        document.getElementById('swal-plan-select').addEventListener('change', refresh);
+        document.getElementById('swal-cat-select').addEventListener('change', refresh);
+        refresh();
+      },
       preConfirm: () => {
         const plan = document.getElementById('swal-plan-select').value;
         const catCode = document.getElementById('swal-cat-select').value;
+        if (budgetCheckBlocks(plan, items, catCode)) return false;
         return { plan, catCode };
       }
     }).then(async (result) => {
@@ -5837,13 +6002,24 @@ async function quickAssignPlan(selectEl, id) {
           ${catOptions}
         </select>
       </div>
+      <div id="swal-budget-check"></div>
     `,
     showCancelButton: true,
-    confirmButtonText: '✅ อนุมัติ',
+    confirmButtonText: '✅ ยืนยันกันเงิน',
     cancelButtonText: 'ยกเลิก',
     confirmButtonColor: '#d97706',
+    didOpen: () => {
+      const refresh = () => {
+        const catCode = document.getElementById('swal-cat-quick').value;
+        document.getElementById('swal-budget-check').innerHTML = buildBudgetCheckHtml(plan, [e], catCode).html;
+      };
+      document.getElementById('swal-cat-quick').addEventListener('change', refresh);
+      refresh();
+    },
     preConfirm: () => {
-      return { catCode: document.getElementById('swal-cat-quick').value };
+      const catCode = document.getElementById('swal-cat-quick').value;
+      if (budgetCheckBlocks(plan, [e], catCode)) return false;
+      return { catCode };
     }
   });
 
