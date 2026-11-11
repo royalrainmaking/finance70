@@ -5147,6 +5147,13 @@ function resolveSubAct(catCodes, configuredSubAct) {
   if (codes.length > 0 && codes.every(isCatC)) return SUB_ACT_CAT_C;
   return configuredSubAct;
 }
+// ตรายาง: แผนงานยุทธศาสตร์มีหัวข้อ "ผลผลิต :" ส่วนแผนอื่นๆ แสดงชื่อโครงการเฉยๆ ไม่มีหัวข้อ
+function getStampOutputLabel(planKey) {
+  return String(planKey || '').includes('ยุทธ') ? 'ผลผลิต' : '';
+}
+function stampOutputPrefix(label) {
+  return label ? label + ' : ' : '';
+}
 function getStampSettingsForPlan(planKey) {
   const defaultP = cache && cache.plans ? cache.plans.find(p => p.shortName === planKey) : null;
   const defaultVal = {
@@ -5200,7 +5207,7 @@ function openStampSettingsModal(selectedPlan = null) {
           <input type="text" id="setStampPlan" value="${currentStamp.plan}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px;">
         </div>
         <div style="margin-bottom:8px;">
-          <label style="font-weight:bold; font-size:12px; color:#334155;">ผลผลิต :</label>
+          <label id="setStampOutputLabel" style="font-weight:bold; font-size:12px; color:#334155;">${getStampOutputLabel(planToEdit) || 'โครงการ'} :</label>
           <input type="text" id="setStampOutput" value="${currentStamp.output}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px;">
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
@@ -5255,6 +5262,8 @@ function onStampPlanSelectChange(planKey) {
   document.getElementById('setStampYear').value = currentStamp.year || '';
   document.getElementById('setStampPlan').value = currentStamp.plan || '';
   document.getElementById('setStampOutput').value = currentStamp.output || '';
+  const outLbl = document.getElementById('setStampOutputLabel');
+  if (outLbl) outLbl.textContent = (getStampOutputLabel(planKey) || 'โครงการ') + ' :';
   document.getElementById('setStampAct').value = currentStamp.act || '';
   document.getElementById('setStampSubAct').value = currentStamp.subAct || '';
   document.getElementById('setStampExpenseCat').value = currentStamp.expenseCat || '';
@@ -5414,7 +5423,7 @@ function openPrintPlanModal(id = null) {
         <div style="position:absolute; top:-20px; left:0; font-size:11px; font-weight:bold; color:#001f60; font-family:'Sarabun', sans-serif;">${defaultItemTag}</div>
         <div class="stamp-line"><b>โดยเบิกจ่ายจากเงินงบประมาณรายจ่ายประจำปีงบประมาณ พ.ศ.๒๕</b><span id="prevYear" style="color:#001f60;">${defaultYear}</span></div>
         <div class="stamp-line"><b>แผนงาน : </b><span id="prevPlan" style="color:#001f60;">${defaultPlan}</span></div>
-        <div class="stamp-line"><b>ผลผลิต : </b><span id="prevOutput" style="color:#001f60;">${defaultOutput}</span></div>
+        <div class="stamp-line"><b>${stampOutputPrefix(getStampOutputLabel(targetPlan))}</b><span id="prevOutput" style="color:#001f60;">${defaultOutput}</span></div>
         <div class="stamp-line stamp-flex">
           <span><b>กิจกรรม : </b><span id="prevAct" style="color:#001f60;">${defaultAct}</span></span>
           <span><b>กิจกรรมย่อย : </b><span id="prevSubAct" style="color:#001f60;">${defaultSubAct}</span></span>
@@ -5460,6 +5469,7 @@ function openPrintPlanModal(id = null) {
         year: toThaiDigits(document.getElementById('inpYear').value) || "๗๐",
         plan: document.getElementById('prevPlan').textContent || defaultPlan,
         output: document.getElementById('prevOutput').textContent || defaultOutput,
+        outputLabel: getStampOutputLabel(targetPlan),
         act: document.getElementById('prevAct').textContent || defaultAct,
         subAct: document.getElementById('prevSubAct').textContent || defaultSubAct,
         expenseCat: defaultExpenseCat,
@@ -5634,7 +5644,7 @@ function triggerPrintWithStamp(data) {
         <div style="position:absolute; top:-18px; left:0; font-size:11px; font-weight:bold; color:#001f60;">${data.itemTag || '#804 (C1)'}</div>
         <div class="stamp-line"><b>โดยเบิกจ่ายจากเงินงบประมาณรายจ่ายประจำปีงบประมาณ พ.ศ.๒๕</b><span>${data.year}</span></div>
         <div class="stamp-line"><b>แผนงาน : </b><span>${data.plan}</span></div>
-        <div class="stamp-line"><b>ผลผลิต : </b><span>${data.output}</span></div>
+        <div class="stamp-line"><b>${stampOutputPrefix(data.outputLabel === undefined ? 'ผลผลิต' : data.outputLabel)}</b><span>${data.output}</span></div>
         <div class="stamp-line stamp-flex">
           <span><b>กิจกรรม : </b><span>${data.act}</span></span>
           <span><b>กิจกรรมย่อย : </b><span>${data.subAct}</span></span>

@@ -175,6 +175,7 @@ function getStampOnlineData() {
     year: stampConfig.year || '\u0e67\u0e60',
     plan: stampConfig.plan || '',
     output: stampConfig.output || '',
+    outputLabel: (typeof getStampOutputLabel === 'function') ? getStampOutputLabel(planKey) : '\u0e1c\u0e25\u0e1c\u0e25\u0e34\u0e15',
     act: stampConfig.act || '',
     subAct: (function () {
       var configured = stampConfig.subAct || '';
@@ -195,7 +196,7 @@ function buildStampHtml(data, fontSize) {
   return '<div style="font-size:' + fs + 'px; line-height:1.45; white-space:nowrap; color:#001f60;">' +
     '<div style="margin-bottom:1px;"><b>\u0e42\u0e14\u0e22\u0e40\u0e1a\u0e34\u0e01\u0e08\u0e48\u0e32\u0e22\u0e08\u0e32\u0e01\u0e40\u0e07\u0e34\u0e19\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13\u0e23\u0e32\u0e22\u0e08\u0e48\u0e32\u0e22\u0e1b\u0e23\u0e30\u0e08\u0e33\u0e1b\u0e35\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13 \u0e1e.\u0e28.\u0e52\u0e55</b>' + data.year + '</div>' +
     '<div style="margin-bottom:1px;"><b>\u0e41\u0e1c\u0e19\u0e07\u0e32\u0e19 : </b>' + data.plan + '</div>' +
-    '<div style="margin-bottom:1px;"><b>\u0e1c\u0e25\u0e1c\u0e25\u0e34\u0e15 : </b>' + data.output + '</div>' +
+    '<div style="margin-bottom:1px;"><b>' + (data.outputLabel ? data.outputLabel + ' : ' : '') + '</b>' + data.output + '</div>' +
     '<div style="display:flex; justify-content:space-between; margin-bottom:1px;">' +
     '<span><b>\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21 : </b>' + data.act + '</span>' +
     '<span style="margin-left:8px;"><b>\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e22\u0e48\u0e2d\u0e22 : </b>' + data.subAct + '</span>' +
@@ -467,7 +468,7 @@ async function saveStampedPdf() {
       var lines = [
         '\u0e42\u0e14\u0e22\u0e40\u0e1a\u0e34\u0e01\u0e08\u0e48\u0e32\u0e22\u0e08\u0e32\u0e01\u0e40\u0e07\u0e34\u0e19\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13\u0e23\u0e32\u0e22\u0e08\u0e48\u0e32\u0e22\u0e1b\u0e23\u0e30\u0e08\u0e33\u0e1b\u0e35\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13 \u0e1e.\u0e28.\u0e52\u0e55' + data.year,
         '\u0e41\u0e1c\u0e19\u0e07\u0e32\u0e19 : ' + data.plan,
-        '\u0e1c\u0e25\u0e1c\u0e25\u0e34\u0e15 : ' + data.output,
+        (data.outputLabel ? data.outputLabel + ' : ' : '') + data.output,
         '\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21 : ' + data.act + '    \u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e22\u0e48\u0e2d\u0e22 : ' + data.subAct,
         data.expenseCat,
         '\u0e20\u0e32\u0e22\u0e43\u0e19\u0e27\u0e07\u0e40\u0e07\u0e34\u0e19\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13 \u0e40\u0e1b\u0e47\u0e19\u0e08\u0e33\u0e19\u0e27\u0e19\u0e40\u0e07\u0e34\u0e19 ' + data.amtNum + ' \u0e1a\u0e32\u0e17',
