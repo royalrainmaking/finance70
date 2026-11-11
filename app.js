@@ -5617,6 +5617,7 @@ function openPrintPlanModal(id = null) {
         <input type="text" id="inpAmtNum" value="" placeholder="ระบุจำนวนเงิน..." style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px;" oninput="updateStampAmt(this.value)">
       </div>
     </div>
+    ${buildStampPositionControlsHtml()}
   `;
 
   Swal.fire({
@@ -5627,8 +5628,12 @@ function openPrintPlanModal(id = null) {
     cancelButtonText: 'ยกเลิก',
     confirmButtonColor: '#001f60',
     width: '540px',
+    didOpen: () => updateStampPosPreview(),
     preConfirm: () => {
+      const pos = saveStampPositionFromInputs();
       return {
+        posLeft: pos.left,
+        posBottom: pos.bottom,
         ids: selectedIds, // Pass the array of selected IDs
         itemTag: document.getElementById('prevItemTag') ? document.getElementById('prevItemTag').textContent : defaultItemTag,
         year: toThaiDigits(document.getElementById('inpYear').value) || "๗๐",
@@ -5667,6 +5672,108 @@ function updateStampAmt(val) {
     if (prevNum) prevNum.textContent = toThaiDigits(val);
     if (prevBaht) prevBaht.textContent = val;
   }
+}
+
+// ============================================================
+// ตำแหน่งตรายางบน A4 (กำหนดเองได้ + จำค่าไว้ในเครื่อง)
+// ============================================================
+const STAMP_POS_DEFAULT = { left: 5, bottom: 40 };   // มม. จากขอบซ้าย / ขอบล่าง
+const STAMP_BOX_MM = { w: 97, h: 38 };              // ขนาดตรายางโดยประมาณ (มม.)
+
+function getStampPosition() {
+  try {
+    const s = JSON.parse(localStorage.getItem('stamp_print_position') || 'null');
+    if (s && !isNaN(s.left) && !isNaN(s.bottom)) return { left: +s.left, bottom: +s.bottom };
+  } catch (e) { }
+  return { ...STAMP_POS_DEFAULT };
+}
+
+function clampStampPos(left, bottom) {
+  left = Math.max(0, Math.min(210 - STAMP_BOX_MM.w, parseFloat(left) || 0));
+  bottom = Math.max(0, Math.min(297 - STAMP_BOX_MM.h, parseFloat(bottom) || 0));
+  return { left: Math.round(left), bottom: Math.round(bottom) };
+}
+
+function buildStampPositionControlsHtml() {
+  const pos = getStampPosition();
+  const sc = 0.8; // 1 มม. = 0.8 px ในภาพตัวอย่าง
+  const inp = 'width:64px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:6px; text-align:center;';
+  return `
+    <div style="margin-top:14px; padding:12px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; text-align:left; display:flex; gap:16px; align-items:flex-start;">
+      <div id="stampPosPage" title="ลากตรายางเพื่อย้ายตำแหน่งได้" style="position:relative; flex:none; width:${210 * sc}px; height:${297 * sc}px; background:#fff; border:1px solid #94a3b8; box-shadow:0 2px 6px rgba(0,0,0,0.12); overflow:hidden;">
+        <div style="position:absolute; top:${20 * sc}px; left:${25 * sc}px; right:${20 * sc}px;">
+          ${'<div style="height:4px; background:#e2e8f0; border-radius:2px; margin-bottom:7px;"></div>'.repeat(9)}
+        </div>
+        <div id="stampPosBox" style="position:absolute; width:${STAMP_BOX_MM.w * sc}px; height:${STAMP_BOX_MM.h * sc}px; border:2px solid #001f60; background:rgba(0,31,96,0.08); border-radius:2px; box-sizing:border-box; cursor:move; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#001f60;">ตรายาง</div>
+      </div>
+      <div style="flex:1; font-size:12px;">
+        <div style="font-weight:800; color:#1e293b; margin-bottom:8px;">📐 ตำแหน่งตรายางบนกระดาษ A4</div>
+        <label style="display:block; font-weight:700; margin-bottom:2px;">ระยะจากขอบล่าง (มม.)</label>
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:10px;">
+          <input type="range" id="stampPosBottomRange" min="0" max="${297 - STAMP_BOX_MM.h}" value="${pos.bottom}" style="flex:1;" oninput="document.getElementById('stampPosBottom').value=this.value; updateStampPosPreview();">
+          <input type="number" id="stampPosBottom" value="${pos.bottom}" style="${inp}" oninput="updateStampPosPreview(true)">
+        </div>
+        <label style="display:block; font-weight:700; margin-bottom:2px;">ระยะจากขอบซ้าย (มม.)</label>
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:10px;">
+          <input type="range" id="stampPosLeftRange" min="0" max="${210 - STAMP_BOX_MM.w}" value="${pos.left}" style="flex:1;" oninput="document.getElementById('stampPosLeft').value=this.value; updateStampPosPreview();">
+          <input type="number" id="stampPosLeft" value="${pos.left}" style="${inp}" oninput="updateStampPosPreview(true)">
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+          <button type="button" onclick="setStampPosInputs(null, 0)" style="font-size:11px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">⬇️ ชิดล่างสุด</button>
+          <button type="button" onclick="setStampPosInputs(null, (parseFloat(document.getElementById('stampPosBottom').value)||0) - 5)" style="font-size:11px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">ลง 5 มม.</button>
+          <button type="button" onclick="setStampPosInputs(null, (parseFloat(document.getElementById('stampPosBottom').value)||0) + 5)" style="font-size:11px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">ขึ้น 5 มม.</button>
+          <button type="button" onclick="setStampPosInputs(${STAMP_POS_DEFAULT.left}, ${STAMP_POS_DEFAULT.bottom})" style="font-size:11px; padding:3px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; cursor:pointer;">↺ ค่าเดิม</button>
+        </div>
+        <div style="font-size:11px; color:#64748b; line-height:1.5;">ลากกล่องตรายางในภาพได้ • ระบบจำตำแหน่งล่าสุดไว้ใช้ครั้งต่อไป</div>
+      </div>
+    </div>`;
+}
+
+function setStampPosInputs(left, bottom) {
+  const L = document.getElementById('stampPosLeft'), B = document.getElementById('stampPosBottom');
+  if (!L || !B) return;
+  const p = clampStampPos(left === null ? L.value : left, bottom === null ? B.value : bottom);
+  L.value = p.left; B.value = p.bottom;
+  updateStampPosPreview(true);
+}
+
+function updateStampPosPreview(fromNumber) {
+  const L = document.getElementById('stampPosLeft'), B = document.getElementById('stampPosBottom');
+  const box = document.getElementById('stampPosBox'), page = document.getElementById('stampPosPage');
+  if (!L || !B || !box || !page) return;
+  const p = clampStampPos(L.value, B.value);
+  if (fromNumber) {
+    document.getElementById('stampPosLeftRange').value = p.left;
+    document.getElementById('stampPosBottomRange').value = p.bottom;
+  }
+  const sc = page.clientWidth / 210;
+  box.style.left = (p.left * sc) + 'px';
+  box.style.bottom = (p.bottom * sc) + 'px';
+
+  if (!page.dataset.dragBound) {
+    page.dataset.dragBound = '1';
+    let drag = null;
+    box.addEventListener('pointerdown', ev => {
+      ev.preventDefault();
+      box.setPointerCapture(ev.pointerId);
+      drag = { x: ev.clientX, y: ev.clientY, left: parseFloat(L.value) || 0, bottom: parseFloat(B.value) || 0 };
+    });
+    box.addEventListener('pointermove', ev => {
+      if (!drag) return;
+      const s = page.clientWidth / 210;
+      setStampPosInputs(drag.left + (ev.clientX - drag.x) / s, drag.bottom - (ev.clientY - drag.y) / s);
+    });
+    const end = () => { drag = null; };
+    box.addEventListener('pointerup', end);
+    box.addEventListener('pointercancel', end);
+  }
+}
+
+function saveStampPositionFromInputs() {
+  const L = document.getElementById('stampPosLeft'), B = document.getElementById('stampPosBottom');
+  const p = (L && B) ? clampStampPos(L.value, B.value) : getStampPosition();
+  try { localStorage.setItem('stamp_print_position', JSON.stringify(p)); } catch (e) { }
+  return p;
 }
 
 function triggerPrintWithStamp(data) {
@@ -5765,8 +5872,8 @@ function triggerPrintWithStamp(data) {
         }
         .stamp-box {
           position: absolute;
-          left: 5mm;
-          bottom: 40mm;
+          left: ${data.posLeft !== undefined ? data.posLeft : STAMP_POS_DEFAULT.left}mm;
+          bottom: ${data.posBottom !== undefined ? data.posBottom : STAMP_POS_DEFAULT.bottom}mm;
           width: 365px;
           font-size: 11px;
           font-weight: 700;
