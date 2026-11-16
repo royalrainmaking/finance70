@@ -197,9 +197,9 @@ function buildStampHtml(data, fontSize) {
     '<div style="margin-bottom:1px;"><b>\u0e42\u0e14\u0e22\u0e40\u0e1a\u0e34\u0e01\u0e08\u0e48\u0e32\u0e22\u0e08\u0e32\u0e01\u0e40\u0e07\u0e34\u0e19\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13\u0e23\u0e32\u0e22\u0e08\u0e48\u0e32\u0e22\u0e1b\u0e23\u0e30\u0e08\u0e33\u0e1b\u0e35\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13 \u0e1e.\u0e28.\u0e52\u0e55</b>' + data.year + '</div>' +
     '<div style="margin-bottom:1px;"><b>\u0e41\u0e1c\u0e19\u0e07\u0e32\u0e19 : </b>' + data.plan + '</div>' +
     '<div style="margin-bottom:1px;"><b>' + (data.outputLabel ? data.outputLabel + ' : ' : '') + '</b>' + data.output + '</div>' +
-    '<div style="display:flex; justify-content:space-between; margin-bottom:1px;">' +
+    '<div style="display:flex; flex-wrap:wrap; column-gap:8px; justify-content:space-between; margin-bottom:1px;">' +
     '<span><b>\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21 : </b>' + data.act + '</span>' +
-    '<span style="margin-left:8px;"><b>\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e22\u0e48\u0e2d\u0e22 : </b>' + data.subAct + '</span>' +
+    '<span><b>\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e22\u0e48\u0e2d\u0e22 : </b>' + data.subAct + '</span>' +
     '</div>' +
     '<div style="margin-bottom:1px;"><b>' + data.expenseCat + '</b></div>' +
     '<div style="margin-bottom:1px;"><b>\u0e20\u0e32\u0e22\u0e43\u0e19\u0e27\u0e07\u0e40\u0e07\u0e34\u0e19\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13 \u0e40\u0e1b\u0e47\u0e19\u0e08\u0e33\u0e19\u0e27\u0e19\u0e40\u0e07\u0e34\u0e19 </b><span style="border-bottom:1px dotted #001f60; padding:0 3px;">' + data.amtNum + '</span> <b>\u0e1a\u0e32\u0e17</b></div>' +
@@ -469,13 +469,26 @@ async function saveStampedPdf() {
         '\u0e42\u0e14\u0e22\u0e40\u0e1a\u0e34\u0e01\u0e08\u0e48\u0e32\u0e22\u0e08\u0e32\u0e01\u0e40\u0e07\u0e34\u0e19\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13\u0e23\u0e32\u0e22\u0e08\u0e48\u0e32\u0e22\u0e1b\u0e23\u0e30\u0e08\u0e33\u0e1b\u0e35\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13 \u0e1e.\u0e28.\u0e52\u0e55' + data.year,
         '\u0e41\u0e1c\u0e19\u0e07\u0e32\u0e19 : ' + data.plan,
         (data.outputLabel ? data.outputLabel + ' : ' : '') + data.output,
-        '\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21 : ' + data.act + '    \u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e22\u0e48\u0e2d\u0e22 : ' + data.subAct,
+        '__ACT_LINE__',
         data.expenseCat,
         '\u0e20\u0e32\u0e22\u0e43\u0e19\u0e27\u0e07\u0e40\u0e07\u0e34\u0e19\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13 \u0e40\u0e1b\u0e47\u0e19\u0e08\u0e33\u0e19\u0e27\u0e19\u0e40\u0e07\u0e34\u0e19 ' + data.amtNum + ' \u0e1a\u0e32\u0e17',
         '(' + data.amtBaht + ')'
       ];
 
       var lineH = pdfFontSize * 1.55;
+      var rectW = 290 * (pdfFontSize / 8.5); // Scale width relative to base size 10 (pdfFontSize 8.5)
+
+      // กิจกรรม + กิจกรรมย่อย: ถ้ายาวเกินกรอบ ให้กิจกรรมย่อยขึ้นบรรทัดใหม่ทั้งก้อน
+      var actText = '\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21 : ' + data.act;
+      var subActText = '\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e22\u0e48\u0e2d\u0e22 : ' + data.subAct;
+      var oneLine = actText + '    ' + subActText;
+      var innerW = rectW - 2 * (5 * (pdfFontSize / 8.5));
+      var actIdx = lines.indexOf('__ACT_LINE__');
+      if (font.widthOfTextAtSize(oneLine, pdfFontSize) <= innerW) {
+        lines.splice(actIdx, 1, oneLine);
+      } else {
+        lines.splice(actIdx, 1, actText, subActText);
+      }
       
       // 1. Draw item tag outside (above) the border
       var topTextY = pdfY;
@@ -483,7 +496,6 @@ async function saveStampedPdf() {
 
       // 2. Draw border
       var boxY = topTextY - (lineH * 0.3); // Start border slightly below the tag
-      var rectW = 290 * (pdfFontSize / 8.5); // Scale width relative to base size 10 (pdfFontSize 8.5)
       var rectH = lines.length * lineH + (8 * (pdfFontSize / 8.5));
       page.drawRectangle({
         x: pdfX, y: boxY - rectH, width: rectW, height: rectH,

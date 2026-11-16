@@ -5589,7 +5589,7 @@ function openPrintPlanModal(id = null) {
         <div class="stamp-line"><b>โดยเบิกจ่ายจากเงินงบประมาณรายจ่ายประจำปีงบประมาณ พ.ศ.๒๕</b><span id="prevYear" style="color:#001f60;">${defaultYear}</span></div>
         <div class="stamp-line"><b>แผนงาน : </b><span id="prevPlan" style="color:#001f60;">${defaultPlan}</span></div>
         <div class="stamp-line"><b>${stampOutputPrefix(getStampOutputLabel(targetPlan))}</b><span id="prevOutput" style="color:#001f60;">${defaultOutput}</span></div>
-        <div class="stamp-line stamp-flex">
+        <div class="stamp-line stamp-flex" style="display:flex; flex-wrap:wrap; justify-content:space-between; column-gap:10px;">
           <span><b>กิจกรรม : </b><span id="prevAct" style="color:#001f60;">${defaultAct}</span></span>
           <span><b>กิจกรรมย่อย : </b><span id="prevSubAct" style="color:#001f60;">${defaultSubAct}</span></span>
         </div>
@@ -5895,6 +5895,8 @@ function triggerPrintWithStamp(data) {
         }
         .stamp-flex {
           display: flex;
+          flex-wrap: wrap; /* ถ้ายาวเกินกรอบ ให้กิจกรรมย่อยขึ้นบรรทัดใหม่ทั้งก้อน */
+          column-gap: 10px;
           justify-content: space-between;
           align-items: center;
         }
