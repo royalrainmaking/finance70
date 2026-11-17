@@ -198,7 +198,7 @@ function buildStampHtml(data, fontSize) {
     '<div style="margin-bottom:1px;"><b>\u0e41\u0e1c\u0e19\u0e07\u0e32\u0e19 : </b>' + data.plan + '</div>' +
     '<div style="margin-bottom:1px;"><b>' + (data.outputLabel ? data.outputLabel + ' : ' : '') + '</b>' + data.output + '</div>' +
     '<div style="display:flex; flex-wrap:wrap; column-gap:8px; justify-content:space-between; margin-bottom:1px;">' +
-    '<span><b>\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21 : </b>' + data.act + '</span>' +
+    '<span><b>\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e2b\u0e25\u0e31\u0e01 : </b>' + data.act + '</span>' +
     '<span><b>\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e22\u0e48\u0e2d\u0e22 : </b>' + data.subAct + '</span>' +
     '</div>' +
     '<div style="margin-bottom:1px;"><b>' + data.expenseCat + '</b></div>' +
@@ -479,7 +479,7 @@ async function saveStampedPdf() {
       var rectW = 290 * (pdfFontSize / 8.5); // Scale width relative to base size 10 (pdfFontSize 8.5)
 
       // กิจกรรม + กิจกรรมย่อย: ถ้ายาวเกินกรอบ ให้กิจกรรมย่อยขึ้นบรรทัดใหม่ทั้งก้อน
-      var actText = '\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21 : ' + data.act;
+      var actText = '\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e2b\u0e25\u0e31\u0e01 : ' + data.act;
       var subActText = '\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21\u0e22\u0e48\u0e2d\u0e22 : ' + data.subAct;
       var oneLine = actText + '    ' + subActText;
       var innerW = rectW - 2 * (5 * (pdfFontSize / 8.5));

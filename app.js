@@ -5377,7 +5377,7 @@ function openStampSettingsModal(selectedPlan = null) {
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
           <div>
-            <label style="font-weight:bold; font-size:12px; color:#334155;">กิจกรรม :</label>
+            <label style="font-weight:bold; font-size:12px; color:#334155;">กิจกรรมหลัก :</label>
             <input type="text" id="setStampAct" value="${currentStamp.act}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px;">
           </div>
           <div>
@@ -5590,7 +5590,7 @@ function openPrintPlanModal(id = null) {
         <div class="stamp-line"><b>แผนงาน : </b><span id="prevPlan" style="color:#001f60;">${defaultPlan}</span></div>
         <div class="stamp-line"><b>${stampOutputPrefix(getStampOutputLabel(targetPlan))}</b><span id="prevOutput" style="color:#001f60;">${defaultOutput}</span></div>
         <div class="stamp-line stamp-flex" style="display:flex; flex-wrap:wrap; justify-content:space-between; column-gap:10px;">
-          <span><b>กิจกรรม : </b><span id="prevAct" style="color:#001f60;">${defaultAct}</span></span>
+          <span><b>กิจกรรมหลัก : </b><span id="prevAct" style="color:#001f60;">${defaultAct}</span></span>
           <span><b>กิจกรรมย่อย : </b><span id="prevSubAct" style="color:#001f60;">${defaultSubAct}</span></span>
         </div>
         <div class="stamp-line"><b>${defaultExpenseCat}</b></div>
@@ -5920,7 +5920,7 @@ function triggerPrintWithStamp(data) {
         <div class="stamp-line"><b>แผนงาน : </b><span>${data.plan}</span></div>
         <div class="stamp-line"><b>${stampOutputPrefix(data.outputLabel === undefined ? 'ผลผลิต' : data.outputLabel)}</b><span>${data.output}</span></div>
         <div class="stamp-line stamp-flex">
-          <span><b>กิจกรรม : </b><span>${data.act}</span></span>
+          <span><b>กิจกรรมหลัก : </b><span>${data.act}</span></span>
           <span><b>กิจกรรมย่อย : </b><span>${data.subAct}</span></span>
         </div>
         <div class="stamp-line"><b>${data.expenseCat || 'งบดำเนินงาน หมวดค่าตอบแทน ใช้สอยและวัสดุ'}</b></div>
