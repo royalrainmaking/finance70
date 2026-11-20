@@ -1293,12 +1293,11 @@ function buildForeignEntriesForPlan(planShortName, summary, groupMap) {
   const items = foreignCache.filter(r => r.type === 'กันเงิน' && !r.parentId);
   items.forEach(it => {
     const kids = foreignCache.filter(r => r.parentId === it.id);
-    // หักล้าง: รายการใหม่เก็บใน deduct, รายการเดิมเก็บเป็น reserve ติดลบ -> นับเป็นตัดยอด
+    // หักล้าง = ยอดติดลบในช่องตัดยอด (รายการใหม่เก็บใน deduct, รายการเดิมเก็บเป็น reserve ติดลบ)
     const offAmt = k => Math.abs(parseSafeFloat(k.deduct)) || Math.abs(parseSafeFloat(k.reserve));
-    const offset = kids.filter(k => k.type === 'หักล้าง').reduce((a, k) => a + offAmt(k), 0);
     const closed = kids.some(k => k.type === 'ตัดยอด');
     const reserveSum = parseSafeFloat(it.reserve) + kids.filter(k => k.type === 'กันเงิน').reduce((a, k) => a + parseSafeFloat(k.reserve), 0);
-    const outstanding = closed ? 0 : Math.max(0, reserveSum - offset);
+    const outstanding = closed ? 0 : Math.max(0, reserveSum);
     const alloc = parseSafeFloat(it.allocation);
     summary[catKey].alloc += alloc;
     summary[catKey].afterAdj += alloc;
@@ -1312,7 +1311,7 @@ function buildForeignEntriesForPlan(planShortName, summary, groupMap) {
     kids.filter(k => k.type === 'ตัดยอด' || k.type === 'ตัดยอดเพิ่ม' || k.type === 'หักล้าง').forEach(k => {
       const dk = normalizeContractDate(k.date) || d0;
       const gf = normalizeContractDate(k.gfDate) || (k.gfDate || '').toString().trim();
-      out.push({ ...base, id: `FT${k.id}`, date: dk, amount: 0, amountDeduct: k.type === 'หักล้าง' ? offAmt(k) : parseSafeFloat(k.deduct),
+      out.push({ ...base, id: `FT${k.id}`, date: dk, amount: 0, amountDeduct: k.type === 'หักล้าง' ? -offAmt(k) : parseSafeFloat(k.deduct),
         colE: gf, colF: `${k.type} (ต่างประเทศ)`, refNo: k.liqRefNo || base.refNo,
         desc: `[ต่างประเทศ] ${k.type}: ${it.desc || ''}`, month: toFiscalMonthAbbr(gf) });
     });

@@ -1338,13 +1338,13 @@ function summary_formulas_(keyword, itemType, withForeign, row) {
   const F = "'" + FOREIGN_SHEET_NAME + "'!";
   const fA = F + '$A$2:$A', fB = F + '$B$2:$B', fC = F + '$C$2:$C', fH = F + '$H$2:$H', fI = F + '$I$2:$I', fJ = F + '$J$2:$J', fL = F + '$L$2:$L';
   const fAlloc = 'SUMIFS(' + fH + ',' + fC + ',"กันเงิน",' + fB + ',"")';
-  // หักล้าง = เบิกจ่ายจริง: นับเข้าตัดยอด และลดเงินกันคงค้าง
-  // ยอดหักล้าง = J − I (รายการใหม่เก็บใน J, รายการเดิมเก็บเป็น I ติดลบ)
+  // หักล้าง = ยอดติดลบในช่องตัดยอด (ไม่นับในเงินกัน)
+  // ยอดหักล้าง = −(|J| + |I|) (รายการใหม่เก็บใน J ติดลบ, รายการเดิมเก็บเป็น I ติดลบ)
   const fOpen = '(COUNTIFS(' + fB + ',IF(' + fB + '="",' + fA + ',' + fB + '),' + fC + ',"ตัดยอด")=0)';
-  const fOff = '(' + fC + '="หักล้าง")*(' + fJ + '-' + fI + ')';
-  const fReserve = '(SUMPRODUCT((' + fC + '="กันเงิน")*' + fI + '*' + fOpen + ')-SUMPRODUCT(' + fOff + '*' + fOpen + '))';
-  const fDeduct = '(SUMIFS(' + fJ + ',' + fC + ',"ตัดยอด*")+SUMPRODUCT(' + fOff + '))';
-  const fGf = '(SUMIFS(' + fJ + ',' + fC + ',"ตัดยอด*",' + fL + ',"<>")+SUMPRODUCT(' + fOff + '*(' + fL + '<>"")))';
+  const fOff = '(' + fC + '="หักล้าง")*(ABS(' + fJ + ')+ABS(' + fI + '))';
+  const fReserve = 'SUMPRODUCT((' + fC + '="กันเงิน")*' + fI + '*' + fOpen + ')';
+  const fDeduct = '(SUMIFS(' + fJ + ',' + fC + ',"ตัดยอด*")-SUMPRODUCT(' + fOff + '))';
+  const fGf = '(SUMIFS(' + fJ + ',' + fC + ',"ตัดยอด*",' + fL + ',"<>")-SUMPRODUCT(' + fOff + '*(' + fL + '<>"")))';
   const plus = x => withForeign ? '+' + x : '';
   const spF = (expr, fx) => '=ARRAYFORMULA(SUMPRODUCT(' + m + '*' + expr + ')' + plus(fx) + ')';
 

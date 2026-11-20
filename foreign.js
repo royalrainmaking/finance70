@@ -5,7 +5,7 @@
 //
 // หลักคำนวณ (เหมือนระบบกันเงินหลัก):
 //   - กันเงินที่ยังไม่ตัดยอด = ยอดกันค้าง
-//   - หักล้าง = เบิกจ่ายจริง -> นับเป็นยอดตัดยอด (ไม่ใช่กันเงิน) และลดยอดกันค้างลงเท่ากัน
+//   - หักล้าง = ยอดติดลบในช่องตัดยอด (ลดยอดตัดยอด) ไม่เกี่ยวกับยอดกันเงิน
 //   - เมื่อตัดยอดแล้ว ยอดกันของรายการนั้นไม่นับ ให้นับยอดตัดยอด (+ ตัดยอดเพิ่ม) แทน
 //   - GF = ยอดตัดยอดที่บันทึกวันที่ GF แล้ว, ค้างท่อ = ตัดยอด − GF
 //   - แต่ละรายการมีงบที่ได้รับจัดสรรของตัวเอง: คงเหลือ = จัดสรร − กันค้าง − ตัดยอด
@@ -51,10 +51,11 @@
   }
 
   // ---------- calculation ----------
-  // ยอดหักล้าง: รายการใหม่เก็บในช่อง deduct, รายการเดิมเคยเก็บเป็น reserve ติดลบ
+  // ยอดหักล้าง (ค่าบวก): รายการใหม่เก็บในช่อง deduct ติดลบ, รายการเดิมเคยเก็บเป็น reserve ติดลบ
   const offAmt = c => Math.abs(Number(c.deduct) || 0) || Math.abs(Number(c.reserve) || 0);
   const isDeductType = t => t === 'ตัดยอด' || t === 'ตัดยอดเพิ่ม' || t === 'หักล้าง';
-  const rowDeduct = c => c.type === 'หักล้าง' ? offAmt(c) : (Number(c.deduct) || 0);
+  // หักล้าง = ติดลบในช่องตัดยอด
+  const rowDeduct = c => c.type === 'หักล้าง' ? -offAmt(c) : (Number(c.deduct) || 0);
 
   function ftCompute() {
     const reserves = ftRows.filter(r => r.type === 'กันเงิน' && !r.parentId);
@@ -65,12 +66,12 @@
       const offset = ch.filter(c => c.type === 'หักล้าง').reduce((a, c) => a + offAmt(c), 0);
       // ยอดกันเงิน = กันตอนสร้างรายการ + กันเงินที่ทำภายหลัง (รายการย่อยประเภท "กันเงิน")
       const reserveSum = r.reserve + ch.filter(c => c.type === 'กันเงิน').reduce((a, c) => a + c.reserve, 0);
-      // ตัดยอด = ตัดยอด + ตัดยอดเพิ่ม + หักล้าง
+      // ตัดยอด = ตัดยอด + ตัดยอดเพิ่ม − หักล้าง
       const deductRows = ch.filter(c => isDeductType(c.type));
       const deduct = deductRows.reduce((a, c) => a + rowDeduct(c), 0);
       const gf = deductRows.filter(c => c.gfDate).reduce((a, c) => a + rowDeduct(c), 0);
       const closed = ch.some(c => c.type === 'ตัดยอด');
-      const outstanding = closed ? 0 : Math.max(0, reserveSum - offset);
+      const outstanding = closed ? 0 : Math.max(0, reserveSum);
       const remain = r.allocation - outstanding - deduct;
       return { ...r, reserveSum, children: ch, offset, deduct, gf, closed, outstanding, remain };
     });
@@ -117,7 +118,7 @@
           <td>${esc(c.desc) || ''}</td>
           <td class="num"></td>
           <td class="num ${resAmt < 0 ? 'neg' : ''}">${resAmt === null ? '' : fmt(resAmt)}</td>
-          <td class="num">${dedAmt === null ? '' : fmt(dedAmt)}</td>
+          <td class="num ${dedAmt < 0 ? 'neg' : ''}">${dedAmt === null ? '' : fmt(dedAmt)}</td>
           <td class="num"></td>
           <td>${canGF ? (c.gfDate ? `<span class="ft-tag ok">GF ${thDate(c.gfDate)}</span>` : '<span class="ft-tag pipe">ค้างท่อ</span>') : ''}</td>
           <td class="act">
@@ -143,7 +144,7 @@
           ${!i.closed ? `<button class="ft-btn" onclick="ftReserveMore('${i.id}')">${i.reserveSum ? 'กันเงินเพิ่ม' : 'กันเงิน'}</button>` : ''}
           ${!i.closed ? `<button class="ft-btn" onclick="ftDeduct('${i.id}', 'ตัดยอด')">ตัดยอด</button>` : ''}
           <button class="ft-btn ghost" onclick="ftDeduct('${i.id}', 'ตัดยอดเพิ่ม')">ตัดยอดเพิ่ม</button>
-          ${!i.closed ? `<button class="ft-btn ghost" onclick="ftOffset('${i.id}')">หักล้าง</button>` : ''}
+          <button class="ft-btn ghost" onclick="ftOffset('${i.id}')">หักล้าง</button>
           <button class="ft-icon" title="แก้ไขรายการ / งบจัดสรร" onclick="ftEdit('${i.id}')"><span class="material-symbols-outlined">edit</span></button>
           <button class="ft-icon danger" title="ลบรายการและรายการย่อย" onclick="ftDelete('${i.id}')"><span class="material-symbols-outlined">delete</span></button>
         </td>
@@ -166,7 +167,7 @@
       <div class="ft-cards">
         ${card('งบที่ได้รับจัดสรร (รวมทุกรายการ)', t.allocation, 'c-alloc')}
         ${card('กันเงิน (คงค้าง)', t.outstanding, 'c-res', `กันทั้งหมด ${fmt(t.reserve)}`)}
-        ${card('ตัดยอด (รวมตัดยอดเพิ่ม + หักล้าง)', t.deduct, 'c-ded', t.offset ? `หักล้าง ${fmt(t.offset)}` : '')}
+        ${card('ตัดยอด (รวมตัดยอดเพิ่ม − หักล้าง)', t.deduct, 'c-ded', t.offset ? `หักล้าง −${fmt(t.offset)}` : '')}
         ${card('GF แล้ว', t.gf, 'c-gf')}
         ${card('ค้างท่อ', t.pipeline, 'c-pipe')}
         ${card('คงเหลือ', t.remain, t.remain < 0 ? 'c-neg' : 'c-remain')}
@@ -235,7 +236,7 @@
   window.ftDeduct = async (parentId, type) => {
     const item = ftCompute().items.find(i => i.id === parentId);
     if (!item) return;
-    const suggest = type === 'ตัดยอด' ? Math.max(0, item.reserveSum - item.offset) : '';
+    const suggest = type === 'ตัดยอด' ? Math.max(0, item.reserveSum) : '';
     const r = await Swal.fire({
       title: `${type} — รายการ #${parentId}`,
       html: `<div class="ft-note">${esc(item.desc || item.name || '')}<br>กันเงิน ${fmt(item.reserveSum)} บาท${item.deduct ? ` · ตัดยอดแล้ว ${fmt(item.deduct)} บาท` : ''}</div>` +
@@ -279,7 +280,7 @@
     if (!item) return;
     const r = await Swal.fire({
       title: `หักล้าง — รายการ #${parentId}`,
-      html: `<div class="ft-note">ยอดกันคงค้าง ${fmt(item.outstanding)} บาท</div>` + formHtml([
+      html: `<div class="ft-note">ตัดยอดแล้ว ${fmt(item.deduct)} บาท — ยอดหักล้างจะบันทึกเป็นติดลบในช่องตัดยอด</div>` + formHtml([
         field('ft-date', 'วันที่', 'date', today()),
         field('ft-liq', 'เลขที่หนังสือ'),
         field('ft-desc', 'หมายเหตุ', 'text', 'หักล้างเงินยืม'),
@@ -290,7 +291,7 @@
       preConfirm: () => num('ft-amt') > 0 ? true : Swal.showValidationMessage('กรุณาระบุจำนวนเงิน')
     });
     if (!r.isConfirmed) return;
-    ftPost('foreign_add', { parentId, type: 'หักล้าง', date: val('ft-date'), liqRefNo: val('ft-liq'), desc: val('ft-desc'), reserve: 0, deduct: Math.abs(num('ft-amt')), gfDate: val('ft-gf') }, 'หักล้างแล้ว');
+    ftPost('foreign_add', { parentId, type: 'หักล้าง', date: val('ft-date'), liqRefNo: val('ft-liq'), desc: val('ft-desc'), reserve: 0, deduct: -Math.abs(num('ft-amt')), gfDate: val('ft-gf') }, 'หักล้างแล้ว');
   };
 
   window.ftGF = async id => {
