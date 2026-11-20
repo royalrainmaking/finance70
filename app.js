@@ -1293,7 +1293,9 @@ function buildForeignEntriesForPlan(planShortName, summary, groupMap) {
   const items = foreignCache.filter(r => r.type === 'กันเงิน' && !r.parentId);
   items.forEach(it => {
     const kids = foreignCache.filter(r => r.parentId === it.id);
-    const offset = kids.filter(k => k.type === 'หักล้าง').reduce((a, k) => a + Math.abs(parseSafeFloat(k.reserve)), 0);
+    // หักล้าง: รายการใหม่เก็บใน deduct, รายการเดิมเก็บเป็น reserve ติดลบ -> นับเป็นตัดยอด
+    const offAmt = k => Math.abs(parseSafeFloat(k.deduct)) || Math.abs(parseSafeFloat(k.reserve));
+    const offset = kids.filter(k => k.type === 'หักล้าง').reduce((a, k) => a + offAmt(k), 0);
     const closed = kids.some(k => k.type === 'ตัดยอด');
     const reserveSum = parseSafeFloat(it.reserve) + kids.filter(k => k.type === 'กันเงิน').reduce((a, k) => a + parseSafeFloat(k.reserve), 0);
     const outstanding = closed ? 0 : Math.max(0, reserveSum - offset);
@@ -1307,10 +1309,10 @@ function buildForeignEntriesForPlan(planShortName, summary, groupMap) {
       out.push({ ...base, id: `FT${it.id}`, date: d0, amount: outstanding, amountDeduct: 0, colE: '', colF: '',
         desc: `[ต่างประเทศ] กันเงิน: ${it.desc || ''}`, month: toFiscalMonthAbbr(d0) });
     }
-    kids.filter(k => k.type === 'ตัดยอด' || k.type === 'ตัดยอดเพิ่ม').forEach(k => {
+    kids.filter(k => k.type === 'ตัดยอด' || k.type === 'ตัดยอดเพิ่ม' || k.type === 'หักล้าง').forEach(k => {
       const dk = normalizeContractDate(k.date) || d0;
       const gf = normalizeContractDate(k.gfDate) || (k.gfDate || '').toString().trim();
-      out.push({ ...base, id: `FT${k.id}`, date: dk, amount: 0, amountDeduct: parseSafeFloat(k.deduct),
+      out.push({ ...base, id: `FT${k.id}`, date: dk, amount: 0, amountDeduct: k.type === 'หักล้าง' ? offAmt(k) : parseSafeFloat(k.deduct),
         colE: gf, colF: `${k.type} (ต่างประเทศ)`, refNo: k.liqRefNo || base.refNo,
         desc: `[ต่างประเทศ] ${k.type}: ${it.desc || ''}`, month: toFiscalMonthAbbr(gf) });
     });
@@ -4890,7 +4892,7 @@ async function syncGfExtras(pairs) {
     });
     const foreign = [];
     ((fRes && fRes.data) || []).forEach(r => {
-      if (r.type !== 'ตัดยอด' && r.type !== 'ตัดยอดเพิ่ม') return;
+      if (r.type !== 'ตัดยอด' && r.type !== 'ตัดยอดเพิ่ม' && r.type !== 'หักล้าง') return;
       const k = norm(r.liqRefNo);
       if (k && !String(r.gfDate || '').trim() && map.has(k)) foreign.push({ id: r.id, gfDate: map.get(k) });
     });
